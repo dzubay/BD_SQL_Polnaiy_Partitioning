@@ -37,7 +37,7 @@ CREATE TABLE Buyer_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -51,7 +51,7 @@ CREATE TABLE Buyer_status_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -65,7 +65,7 @@ CREATE TABLE Condition_of_the_item_Audit_2
  	ModifiedBy                nVARCHAR(128)         null,
     ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation                 CHAR(1)               null,
-    ChangeDescription         nvarchar(4000)        null
+    ChangeDescription         nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -79,7 +79,7 @@ CREATE TABLE Connection_Buyer_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -93,7 +93,7 @@ CREATE TABLE Currency_Audit_2
  	ModifiedBy           nVARCHAR(128)         null,
     ModifiedDate         DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation            CHAR(1)               null,
-    ChangeDescription    nvarchar(4000)        null
+    ChangeDescription    nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 )on PARTITION_Audit_2 ;
 go
@@ -107,7 +107,7 @@ CREATE TABLE Currency_Rate_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -121,7 +121,7 @@ CREATE TABLE Data_Orders_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -135,7 +135,7 @@ CREATE TABLE Exemplar_Audit_2
  	ModifiedBy                nVARCHAR(128)         null,
     ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation                 CHAR(1)               null,
-    ChangeDescription         nvarchar(4000)        null
+    ChangeDescription         nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -149,7 +149,7 @@ CREATE TABLE Item_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -163,7 +163,7 @@ CREATE TABLE Orders_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -177,7 +177,7 @@ CREATE TABLE Orders_status_Audit_2
  	ModifiedBy           nVARCHAR(128)         null,
     ModifiedDate         DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation            CHAR(1)               null,
-    ChangeDescription    nvarchar(4000)        null
+    ChangeDescription    nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -191,7 +191,7 @@ CREATE TABLE Storage_location_Audit_2
  	ModifiedBy                nVARCHAR(128)         null,
     ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation                 CHAR(1)               null,
-    ChangeDescription         nvarchar(4000)        null
+    ChangeDescription         nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -205,7 +205,7 @@ CREATE TABLE TRANSACTION_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -219,7 +219,7 @@ CREATE TABLE Transaction_status_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -233,7 +233,7 @@ CREATE TABLE Type_of_product_measurement_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -247,7 +247,7 @@ CREATE TABLE Type_Storage_location_Audit_2
  	ModifiedBy                nVARCHAR(128)         null,
     ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation                 CHAR(1)               null,
-    ChangeDescription         nvarchar(4000)        null
+    ChangeDescription         nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -261,7 +261,7 @@ CREATE TABLE TypeItem_Audit_2
  	ModifiedBy           nVARCHAR(128)         null,
     ModifiedDate         DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation            CHAR(1)               null,
-    ChangeDescription    nvarchar(4000)        null
+    ChangeDescription    nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
@@ -275,7 +275,7 @@ CREATE TABLE TypeOrders_Audit_2
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(4000)        null
+    ChangeDescription      nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit_2;
 go
