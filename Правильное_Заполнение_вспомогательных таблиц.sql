@@ -79,7 +79,7 @@ while @@FETCH_STATUS  = 0
                          JOIN sys.schemas s ON t.schema_id = s.schema_id
                          JOIN sys.partitions p ON p.object_id = t.object_id
                          --WHERE  p.index_id IN (0, 1) -- 0 для хипов (heap), 1 для кластерных индексов
-                         and t.name = @Name_TB and p.rows != 0 AND p.index_id > 0) as t2
+                         and t.name = @Name_TB and p.rows != 0 AND p.index_id = 1) as t2
                          GROUP BY  t2.TableName ) 
 						 
                      begin 
@@ -96,7 +96,7 @@ while @@FETCH_STATUS  = 0
 			            FROM  sys.tables t
 			            JOIN sys.schemas s ON t.schema_id = s.schema_id
 			            JOIN sys.partitions p ON p.object_id = t.object_id
-			            and t.name = @Name_TB and p.rows != 0 AND p.index_id > 0) as t2
+			            and t.name = @Name_TB and p.rows != 0 AND p.index_id = 1) as t2
 			            GROUP BY  t2.TableName)  t3) 
 			  select @s = count(0) from #t where flag = 0
 			  set @n = (select  
