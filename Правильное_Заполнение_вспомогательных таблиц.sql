@@ -1,5 +1,5 @@
 ﻿
-use Magaz_DB_2_Test
+use Magaz_DB_Poln_Test
 go
 set nocount,xact_abort on
 go
@@ -57,13 +57,13 @@ while @@FETCH_STATUS  = 0
              ' + QUOTENAME(@Name_Colm) + '      
              ,cast(rn as nvarchar(128))
              ' + QUOTENAME(@Name_Colm) + '      
-             , dateadd(hh, rn-1, ''20230101'') ModifiedBy, ''I'', ''dummy char column #'' + cast(rn as varchar)
+             , dateadd(hh, rn-1, ''20250101'') ModifiedBy, ''I'', ''dummy char column #'' + cast(rn as varchar)
              from
              (
              select row_number() over(order by (select (null))) rn
-             from nums n1, nums n2, nums n3, nums n4, nums n5
+             from nums n1, nums n2, nums n3, nums n4, nums n5,nums n6, nums n7, nums n8
              ) t
-             where rn < 55000
+             where rn < 40000
 			 '
               exec sp_executesql @sql;
 
@@ -79,8 +79,9 @@ while @@FETCH_STATUS  = 0
                          JOIN sys.schemas s ON t.schema_id = s.schema_id
                          JOIN sys.partitions p ON p.object_id = t.object_id
                          --WHERE  p.index_id IN (0, 1) -- 0 для хипов (heap), 1 для кластерных индексов
-                         and t.name = @Name_TB and p.rows != 0) as t2
+                         and t.name = @Name_TB and p.rows != 0 AND p.index_id > 0) as t2
                          GROUP BY  t2.TableName ) 
+						 
                      begin 
 					     update a set flag = 1 from #t  as a where Name_TB = @Name_TB and  @Name_Colm = Name_Colm and flag = 0
 					 end;	
@@ -95,7 +96,7 @@ while @@FETCH_STATUS  = 0
 			            FROM  sys.tables t
 			            JOIN sys.schemas s ON t.schema_id = s.schema_id
 			            JOIN sys.partitions p ON p.object_id = t.object_id
-			            and t.name = @Name_TB and p.rows != 0) as t2
+			            and t.name = @Name_TB and p.rows != 0 AND p.index_id > 0) as t2
 			            GROUP BY  t2.TableName)  t3) 
 			  select @s = count(0) from #t where flag = 0
 			  set @n = (select  
@@ -111,15 +112,29 @@ while @@FETCH_STATUS  = 0
                 begin
                    rollback;
                 end;
-                
+                 SELECT 
+                     ERROR_NUMBER() AS ErrorNumber,
+                     ERROR_SEVERITY() AS ErrorSeverity,
+                     ERROR_STATE() as ErrorState,
+                     ERROR_PROCEDURE() as ErrorProcedure,
+                     ERROR_LINE() as ErrorLine,
+                     ERROR_MESSAGE() as ErrorMessage;
                 set @err = formatmessage(N'ID=%I64d, error - %s', @Name_TB, error_message());
                 print @err;
        end catch;
             	   
 
 	fetch next from mycur_Audit into @Name_TB,@Name_Colm,@flag
+	
 	end
+		
 close mycur_Audit
 deallocate mycur_Audit
-				
+			
 go				
+
+
+
+
+--ALTER DATABASE Magaz_DB_2_Test
+--MODIFY FILE (NAME = 'Log_Data_2', SIZE = 5000MB);

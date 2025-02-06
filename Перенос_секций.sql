@@ -1,4 +1,4 @@
-﻿use Magaz_DB_2_Test
+﻿use Magaz_DB_Poln_Test
 go
 set nocount,xact_abort on
 go
@@ -19,7 +19,7 @@ declare @partition_number int;
 declare @partition_id bigint; 
 
 
-declare @Num_partition DateTime = '31.12.2023 23:59:59.997' -- Указываем Секцию
+declare @Num_partition DateTime = '31.12.2025 23:59:59.997' -- Указываем Секцию
 
 drop table if exists #t
 drop table if exists #t2
@@ -196,6 +196,7 @@ and p.partition_number =  CASE pf.boundary_value_on_right
                           ELSE prv.boundary_id END       
 WHERE  t.name  like '%_2%'  
 
---72057594048479232
 */
+
+
 
