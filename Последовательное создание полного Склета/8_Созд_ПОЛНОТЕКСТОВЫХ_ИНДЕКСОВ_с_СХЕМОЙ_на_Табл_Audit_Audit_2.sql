@@ -4,7 +4,11 @@
 
 --ВАЖНО !!!!!!!!!!!!!! ПРИ ПЕРЕНОСЕ СЕКЦИЙ ТАБЛИЦЫ С СОЗДАННЫМ ПОЛНОТЕКСТОВЫМ КЛЮЧЁМ - Не удалось выполнить инструкцию ALTER TABLE SWITCH, так как таблица "Magaz_DB_Poln_Test.dbo.Branch_Audit" имеет полнотекстовый индекс.
 --ТОГДА СНАЧАЛА УДАЛЯЕМ ИХ, ПОТОМ ПЕРЕНОИМ, И ПОТОМ СНОВА ВОСТОНАВЛИВАЕМ. ТОЛЬКО ТАК.
-use Magaz_DB_Poln_Test
+
+
+
+--SELECT FULLTEXTSERVICEPROPERTY('IsFullTextInstalled') AS IsFullTextInstalled;  -- Проверка на уствновленный компонент Полн_тект_индекса
+use Magaz_DB_Poln
 
 go
 --создание полнотекстового индекса
