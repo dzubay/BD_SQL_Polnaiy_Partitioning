@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  sql-server:
+    build: .  # Собирает Dockerfile из текущей директории
+    container_name: sql2019_new
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: TempPa55wd#
+      MSSQL_PID: Developer
+      MSSQL_ENABLE_HADR: 0
+      MSSQL_ENABLE_MIXED_AUTH: 1
+    ports:
+      - "1433:1433"  # Пробрасываем порт 1433 на хост
+    volumes:
+      - ./Public_file.sql:/usr/src/app/Public_file.sql  # Монтируем SQL-файл (опционально)
