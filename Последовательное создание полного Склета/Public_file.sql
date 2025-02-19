@@ -1,16 +1,16 @@
 ﻿
 --Сначала требуется ввести данные о пути к папкам, и после чего запускать.
 declare                                          --------------------------------------------
- @Magaz_DB_Poln_Root      nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Magaz_DB_Poln_Root.mdf'
-,@Customers_Data_Poln_1   nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Customers_Data_Poln_1.ndf'
-,@Customers_Data_Poln_2   nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Customers_Data_Poln_2.ndf'
-,@Product_Data_Poln_1	  nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Product_Data_Poln_1.ndf'
-,@Product_Data_Poln_2	  nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Product_Data_Poln_2.ndf'
-,@Orders_Data_Poln_1	  nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Orders_Data_Poln_1.ndf'
-,@Orders_Data_Poln_2	  nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Orders_Data_Poln_2.ndf'
-,@Employee_Data_Poln_1	  nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Employee_Data_Poln_1.ndf'
-,@Employee_Data_Poln_2	  nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Employee_Data_Poln_2.ndf'
-,@Log_Data_Poln           nvarchar(400) =  N'/var/opt/mssql/data/'   +  'Log_Data_Poln.ldf'
+ @Magaz_DB_Poln_Root      nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Magaz_DB_Poln_Root\'     +  'Magaz_DB_Poln_Root.mdf'
+,@Customers_Data_Poln_1   nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Costomers_Group\'        +  'Customers_Data_Poln_1.ndf'
+,@Customers_Data_Poln_2   nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Costomers_Group\'        +  'Customers_Data_Poln_2.ndf'
+,@Product_Data_Poln_1	  nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Products_Group\'         +  'Product_Data_Poln_1.ndf'
+,@Product_Data_Poln_2	  nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Products_Group\'         +  'Product_Data_Poln_2.ndf'
+,@Orders_Data_Poln_1	  nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Orders_Group\'           +  'Orders_Data_Poln_1.ndf'
+,@Orders_Data_Poln_2	  nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Orders_Group\'           +  'Orders_Data_Poln_2.ndf'
+,@Employee_Data_Poln_1	  nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Employee_Group\'         +  'Employee_Data_Poln_1.ndf'
+,@Employee_Data_Poln_2	  nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Employee_Group\'         +  'Employee_Data_Poln_2.ndf'
+,@Log_Data_Poln           nvarchar(400) =  N'D:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\Log_Data\'               +  'Log_Data_Poln.ldf'
                                          --------------------------------------------   
 										 
 
@@ -10847,11 +10847,11 @@ filegrowth = 100 mb
 CREATE PARTITION FUNCTION PF_PartFuncDate_left (Datetime)  
 AS RANGE left FOR VALUES 
 (
-''' + CONVERT(NVARCHAR(50), @Num_partition_1, 121) + ''',
-''' + CONVERT(NVARCHAR(50), @Num_partition_2, 121) + ''',
-''' + CONVERT(NVARCHAR(50), @Num_partition_3, 121) + ''',
-''' + CONVERT(NVARCHAR(50), @Num_partition_4, 121) + ''',
-''' + CONVERT(NVARCHAR(50), @Num_partition_5, 121) + '''
+''' + CAST(Format(@Num_partition_1,'dd-MM-yyyy HH:mm:ss.fff') AS NVARCHAR(50)) + ''',
+''' + CAST(Format(@Num_partition_2,'dd-MM-yyyy HH:mm:ss.fff') AS NVARCHAR(50)) + ''',
+''' + CAST(Format(@Num_partition_3,'dd-MM-yyyy HH:mm:ss.fff') AS NVARCHAR(50)) + ''',
+''' + CAST(Format(@Num_partition_4,'dd-MM-yyyy HH:mm:ss.fff') AS NVARCHAR(50)) + ''',
+''' + CAST(Format(@Num_partition_5,'dd-MM-yyyy HH:mm:ss.fff') AS NVARCHAR(50)) + '''
 );
 
 

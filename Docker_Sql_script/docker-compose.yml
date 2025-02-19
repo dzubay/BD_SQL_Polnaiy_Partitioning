@@ -1,15 +1,29 @@
 version: '3.8'
+
 services:
-  sql-server:
-    build: .  # Собирает Dockerfile из текущей директории
-    container_name: sql2019_new
+  sqlserver:
+    image: beejay/mssql-fts:ubuntu   # Используем уже существующий образ
+    container_name: sql2019_new_2
+    ports:
+      - "1433:1433"
     environment:
       ACCEPT_EULA: Y
       SA_PASSWORD: TempPa55wd#
       MSSQL_PID: Developer
       MSSQL_ENABLE_HADR: 0
       MSSQL_ENABLE_MIXED_AUTH: 1
-    ports:
-      - "1433:1433"  # Пробрасываем порт 1433 на хост
     volumes:
-      - ./Public_file.sql:/usr/src/app/Public_file.sql  # Монтируем SQL-файл (опционально)
+      - ./Public_file.sql:/tmp/Public_file.sql  # Копируем SQL-файл в контейнер
+    command: >
+      bash -c "
+      apt-get update && apt-get install -y curl &&
+      curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - &&
+      curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list > /etc/apt/sources.list.d/mssql-release.list &&
+      apt-get update &&
+      ACCEPT_EULA=Y apt-get install -y mssql-tools unixodbc-dev &&
+      echo 'mssql-tools installed' &&
+      /opt/mssql/bin/sqlservr &
+      sleep 120 &&
+      /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'TempPa55wd#' -i /tmp/Public_file.sql &&
+      tail -f /dev/null
+      "
