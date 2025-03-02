@@ -45,9 +45,11 @@ CONSTRAINT FK_Branch_Id_Country Foreign key  (Id_Country) references dbo.[Countr
 go
 ALTER TABLE dbo.[Orders]
 ADD
-constraint  FK_ID_Orders_status        foreign key (ID_status)       references [dbo].Orders_status   on delete NO ACTION,
-constraint  FK_ID_TypeOrders           foreign key (ID_TypeOrders)   references [dbo].TypeOrders      on delete NO ACTION,
-constraint  FK_ID_Currency_Orders      foreign key (ID_Currency  )   references [dbo].Currency        on delete NO ACTION
+constraint  FK_ID_Orders_status        foreign key (ID_status)            references [dbo].Orders_status      on delete NO ACTION,
+constraint  FK_ID_TypeOrders           foreign key (ID_TypeOrders)        references [dbo].TypeOrders         on delete NO ACTION,
+constraint  FK_ID_Currency_Orders      foreign key (ID_Currency  )        references [dbo].Currency           on delete NO ACTION,
+constraint  FK_ID_OrderAssignment      foreign key (ID_OrderAssignment)   references [dbo].Order_Assignment   on delete NO ACTION,
+constraint  FK_ID_OrderCategory        foreign key (ID_OrderCategory  )   references [dbo].Order_category     on delete NO ACTION
 go
 ALTER TABLE   dbo.[Buyer]
 ADD 
