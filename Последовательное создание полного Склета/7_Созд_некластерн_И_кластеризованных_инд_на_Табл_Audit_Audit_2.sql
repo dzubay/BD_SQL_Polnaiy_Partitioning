@@ -1,4 +1,4 @@
-﻿use Magaz_DB_Poln_Test
+﻿use Magaz_DB_Poln
 go
 ---------------------------------Данный запрос формирует уникальные кластеризованные индексы----------------------------------------------------------------------------------------------------
 ---------------------------так как для создания ПОЛНОТЕКСТОВОГО ИНДЕКСА требуется, проиндексированное уникальное поле, иначе будет ошибка-------------------------------------------------------
@@ -26,6 +26,8 @@ where 1 = 1  and o.type = 'U'  and o.name like '%_2%'
 */
 
 begin tran
+create UNIQUE nonclustered index index_UNIQUE_Order_Assignment_Audit_2 on Order_Assignment_Audit_2(AuditID)
+create UNIQUE nonclustered index index_UNIQUE_Order_category_Audit_2 on Order_category_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Employees_Audit_2 on Employees_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Department_Audit_2 on Department_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Group_Audit_2 on Group_Audit_2(AuditID)
@@ -54,6 +56,9 @@ create UNIQUE nonclustered index index_UNIQUE_Type_of_product_measurement_Audit_
 create UNIQUE nonclustered index index_UNIQUE_Type_Storage_location_Audit_2 on Type_Storage_location_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_TypeItem_Audit_2 on TypeItem_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_TypeOrders_Audit_2 on TypeOrders_Audit_2(AuditID)
+
+create UNIQUE nonclustered index index_UNIQUE_Order_Assignment_Audit on Order_Assignment_Audit(AuditID)
+create UNIQUE nonclustered index index_UNIQUE_Order_category_Audit on Order_category_Audit(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Employees_Audit on Employees_Audit(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Department_Audit on Department_Audit(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Group_Audit on Group_Audit(AuditID)
@@ -150,6 +155,8 @@ where 1 = 1  and t.type = 'U'  and t.name like '%_2%'
 
 
 begin tran
+create clustered index index_Order_Assignment_Audit_2 on Order_Assignment_Audit_2(ID_OrderAssignment,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
+create clustered index index_Order_category_Audit_2 on Order_category_Audit_2(ID_OrderCategory,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Employees_Audit_2 on Employees_Audit_2(ID_Employee,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Department_Audit_2 on Department_Audit_2(ID_Department,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Group_Audit_2 on Group_Audit_2(ID_Group,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
@@ -178,6 +185,10 @@ create clustered index index_Type_of_product_measurement_Audit_2 on Type_of_prod
 create clustered index index_Type_Storage_location_Audit_2 on Type_Storage_location_Audit_2(ID_Type_Storage_location,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_TypeItem_Audit_2 on TypeItem_Audit_2(Id_TypeItem,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_TypeOrders_Audit_2 on TypeOrders_Audit_2(ID_TypeOrders,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
+
+
+create clustered index index_Order_Assignment_Audit on Order_Assignment_Audit(ID_OrderAssignment,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
+create clustered index index_Order_category_Audit on Order_category_Audit(ID_OrderCategory,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Employees_Audit on Employees_Audit(ID_Employee,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Department_Audit on Department_Audit(ID_Department,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Group_Audit on Group_Audit(ID_Group,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)

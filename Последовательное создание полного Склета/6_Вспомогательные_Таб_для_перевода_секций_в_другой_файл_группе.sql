@@ -1,4 +1,4 @@
-﻿use Magaz_DB_Poln_Test
+﻿use Magaz_DB_Poln
 go
  begin tran
 CREATE TABLE Employees_Audit_2
@@ -324,6 +324,27 @@ CREATE TABLE TypeOrders_Audit_2
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit;
 go
-
+CREATE TABLE Order_category_Audit_2
+(
+    AuditID              bigint IDENTITY(1,1)  not null,
+    ID_OrderCategory     bigint                null,
+ 	ModifiedBy           nVARCHAR(128)         null,
+    ModifiedDate         DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation            CHAR(1)               null,
+    ChangeDescription    nvarchar(max)        null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on PARTITION_Audit;
+go
+CREATE TABLE Order_Assignment_Audit_2
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_OrderAssignment     bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on PARTITION_Audit;
+go
 --rollback
 commit
