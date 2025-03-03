@@ -4793,20 +4793,6 @@ CREATE TABLE Storage_location_Audit
 
 go
 
-CREATE TABLE Storage_location_Audit
-(
-    AuditID                   bigint IDENTITY(1,1)  not null,
-    ID_Storage_location       bigint                null,
- 	ModifiedBy                nVARCHAR(128)         null,
-    ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation                 CHAR(1)               null,
-    ChangeDescription         nvarchar(max)         null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
 CREATE TRIGGER trg_Storage_location_Audit ON Storage_location
 AFTER INSERT, UPDATE, DELETE
 
