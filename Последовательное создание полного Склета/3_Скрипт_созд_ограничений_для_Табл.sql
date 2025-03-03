@@ -73,7 +73,8 @@ constraint FK_ID_product_measurement        foreign key (ID_product_measurement)
 GO
 ALTER TABLE dbo.[Storage_location]
 ADD
-constraint FK_ID_Type_Storage_location     foreign key (ID_Type_Storage_location)        references [dbo].Type_Storage_location    on delete NO ACTION
+constraint FK_ID_Type_Storage_location     foreign key (ID_Type_Storage_location)        references [dbo].Type_Storage_location    on delete NO ACTION,
+constraint FK_ID_Status_Storage_location   Foreign key(Id_Status)                        references  [dbo].Storage_location_status on delete no action 
 GO
 ALTER TABLE dbo.[Exemplar]
 ADD

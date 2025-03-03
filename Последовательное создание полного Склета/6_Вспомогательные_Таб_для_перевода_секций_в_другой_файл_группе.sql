@@ -346,5 +346,18 @@ CREATE TABLE Order_Assignment_Audit_2
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit;
 go
+
+CREATE TABLE Storage_location_status_Audit_2
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    Id_Status              bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on PARTITION_Audit;
+
+go
 --rollback
 commit
