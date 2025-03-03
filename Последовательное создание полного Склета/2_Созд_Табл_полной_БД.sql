@@ -378,11 +378,22 @@ constraint PK_ID_Type_Storage_location      primary key (ID_Type_Storage_locatio
 
 go  
 
+create table Storage_location_status                                           --Статус Места Хранения
+(
+Id_Status                  bigint          not null identity (1,1)  check(Id_Status !=0),   -- ID Статуса Места Хранения
+TypeStoragelocationName    nvarchar(300)   not null,                                        -- Наименование Статуса Места Хранения
+SysTypeStoragelocationName nvarchar(300)   not null,                                        -- Системное имя Статуса Места Хранения
+[Description]              nvarchar(4000)  null,                                            -- Комментарии
+constraint  PK_Id_Storage_location_status   primary key (Id_Status),
+) on Products_Group
+
+go
 
 create table Storage_location                                                    -- Место хранение
 (
 ID_Storage_location        bigint              not null identity(1,1) check(ID_Storage_location != 0),   --ID Место хранение экземпляра
 ID_Type_Storage_location   bigint              not null,                                                 --ID Типа места хранение
+Id_Status                  bigint              not null,                                                 --ID Статуса Места Хранения
 KeySource                  bigint              null,                                                     --Источник ключа с другими БД или сервисами
 Name                       nvarchar(400)       not null,                                                 --Наименование места хранения
 Country                    nvarchar(200)       null,                                                     --Страна  места хранения
