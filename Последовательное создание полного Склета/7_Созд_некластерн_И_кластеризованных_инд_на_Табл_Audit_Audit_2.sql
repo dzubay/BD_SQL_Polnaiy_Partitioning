@@ -26,6 +26,7 @@ where 1 = 1  and o.type = 'U'  and o.name like '%_2%'
 */
 
 begin tran
+create UNIQUE nonclustered index index_UNIQUE_Buyer_Type_Audit_2 on Buyer_Type_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Storage_location_status_Audit_2 on Storage_location_status_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Order_Assignment_Audit_2 on Order_Assignment_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Order_category_Audit_2 on Order_category_Audit_2(AuditID)
@@ -58,6 +59,7 @@ create UNIQUE nonclustered index index_UNIQUE_Type_Storage_location_Audit_2 on T
 create UNIQUE nonclustered index index_UNIQUE_TypeItem_Audit_2 on TypeItem_Audit_2(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_TypeOrders_Audit_2 on TypeOrders_Audit_2(AuditID)
 
+create UNIQUE nonclustered index index_UNIQUE_Buyer_Type_Audit on Buyer_Type_Audit(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Storage_location_status_Audit on Storage_location_status_Audit(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Order_Assignment_Audit on Order_Assignment_Audit(AuditID)
 create UNIQUE nonclustered index index_UNIQUE_Order_category_Audit on Order_category_Audit(AuditID)
@@ -157,6 +159,7 @@ where 1 = 1  and t.type = 'U'  and t.name like '%_2%'
 
 
 begin tran
+create clustered index index_Buyer_Type_Audit_2 on Buyer_Type_Audit_2(Id_Buyer_Type,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Storage_location_status_Audit_2 on Storage_location_status_Audit_2(Id_Status,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Order_Assignment_Audit_2 on Order_Assignment_Audit_2(ID_OrderAssignment,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Order_category_Audit_2 on Order_category_Audit_2(ID_OrderCategory,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
@@ -190,6 +193,7 @@ create clustered index index_TypeItem_Audit_2 on TypeItem_Audit_2(Id_TypeItem,Mo
 create clustered index index_TypeOrders_Audit_2 on TypeOrders_Audit_2(ID_TypeOrders,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 
 
+create clustered index index_Buyer_Type_Audit on Buyer_Type_Audit(Id_Buyer_Type,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Storage_location_status_Audit on Storage_location_status_Audit(Id_Status,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Order_Assignment_Audit on Order_Assignment_Audit(ID_OrderAssignment,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Order_category_Audit on Order_category_Audit(ID_OrderCategory,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
