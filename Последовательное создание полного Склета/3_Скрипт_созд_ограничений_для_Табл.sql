@@ -54,7 +54,8 @@ go
 ALTER TABLE   dbo.[Buyer]
 ADD 
 constraint FK_ID_Connection_Buyer  foreign key (ID_Connection_Buyer)   references dbo.Connection_Buyer  on delete NO ACTION,
-constraint FK_Id_Buyer_statuss     foreign key (Id_Status)             references dbo.Buyer_status      on delete NO ACTION
+constraint FK_Id_Buyer_statuss     foreign key (Id_Status)             references dbo.Buyer_status      on delete NO ACTION,
+constraint FK_Id_Buyer_Type        foreign key (Id_Buyer_Type)         references dbo.Buyer_Type      on delete NO ACTION
 go
 ALTER TABLE dbo.[Currency_Rate]
 ADD
