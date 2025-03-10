@@ -369,5 +369,30 @@ CREATE TABLE Buyer_Type_Audit_2
     ChangeDescription      nvarchar(max)        null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on PARTITION_Audit;
+go
+
+CREATE TABLE Species_Item_Audit_2
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_Species_Item        bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on PARTITION_Audit;
+go
+
+CREATE TABLE Item_status_Audit_2
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    Id_Item_Status         bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on PARTITION_Audit;
+
 --rollback
 commit

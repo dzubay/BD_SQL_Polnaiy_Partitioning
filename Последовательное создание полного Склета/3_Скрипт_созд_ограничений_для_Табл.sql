@@ -55,7 +55,7 @@ ALTER TABLE   dbo.[Buyer]
 ADD 
 constraint FK_ID_Connection_Buyer  foreign key (ID_Connection_Buyer)   references dbo.Connection_Buyer  on delete NO ACTION,
 constraint FK_Id_Buyer_statuss     foreign key (Id_Status)             references dbo.Buyer_status      on delete NO ACTION,
-constraint FK_Id_Buyer_Type        foreign key (Id_Buyer_Type)         references dbo.Buyer_Type      on delete NO ACTION
+constraint FK_Id_Buyer_Type        foreign key (Id_Buyer_Type)         references dbo.Buyer_Type        on delete NO ACTION
 go
 ALTER TABLE dbo.[Currency_Rate]
 ADD
@@ -70,7 +70,9 @@ GO
 ALTER TABLE  dbo.[Item]
 ADD
 constraint FK_ID_TypeItem                   foreign key (ID_TypeItem)              references [dbo].TypeItem                       on delete NO ACTION,
-constraint FK_ID_product_measurement        foreign key (ID_product_measurement)   references [dbo].Type_of_product_measurement    on delete NO ACTION
+constraint FK_ID_product_measurement        foreign key (ID_product_measurement)   references [dbo].Type_of_product_measurement    on delete NO ACTION,
+constraint FK_ID_Species_Item               foreign key (ID_Species_Item)          references [dbo].Species_Item                   on delete NO ACTION,
+constraint FK_Id_Item_Status                foreign key (Id_Item_Status)           references [dbo].Item_status                    on delete NO ACTION
 GO
 ALTER TABLE dbo.[Storage_location]
 ADD
