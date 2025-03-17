@@ -816,6 +816,23 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+							            SELECT 
+							                @NewId_buyer             = I.Id_buyer           , 
+							            	@NewID_Connection_Buyer  = I.ID_Connection_Buyer,
+							            	@NewId_Status            = I.Id_Status          ,
+											@NewId_Buyer_Type        = I.Id_Buyer_Type      ,
+							            	@NewName                 = I.Name               ,
+							            	@NewSurName              = I.SurName            ,
+							            	@NewLastName             = I.LastName           ,
+							            	@NewMail                 = I.Mail               ,
+							            	@NewPol                  = I.Pol                ,
+							            	@NewPhone                = I.Phone              ,
+							            	@NewDate_Of_Birth        = I.Date_Of_Birth      ,
+											@NewPremium     		 = I.Premium            ,
+											@NewThe_resident         = I.The_resident		,
+							            	@NewDescription          = I.[Description]        	
+							            FROM inserted I									 
+							            where @ID_entity_D = I.Id_buyer;
 
                                         SELECT 
 							                @OldId_buyer             = D.Id_buyer           , 
@@ -834,24 +851,6 @@ AS
 							            	@OldDescription          = D.[Description]        							
 							            FROM Deleted D
 										where @ID_entity_D = D.Id_buyer;
-
-							            SELECT 
-							                @NewId_buyer             = I.Id_buyer           , 
-							            	@NewID_Connection_Buyer  = I.ID_Connection_Buyer,
-							            	@NewId_Status            = I.Id_Status          ,
-											@NewId_Buyer_Type        = I.Id_Buyer_Type      ,
-							            	@NewName                 = I.Name               ,
-							            	@NewSurName              = I.SurName            ,
-							            	@NewLastName             = I.LastName           ,
-							            	@NewMail                 = I.Mail               ,
-							            	@NewPol                  = I.Pol                ,
-							            	@NewPhone                = I.Phone              ,
-							            	@NewDate_Of_Birth        = I.Date_Of_Birth      ,
-											@NewPremium     		 = I.Premium            ,
-											@NewThe_resident         = I.The_resident		,
-							            	@NewDescription          = I.[Description]        	
-							            FROM inserted I									 
-							            where @ID_entity_D = I.Id_buyer;
 
 
                                        IF @NewID_Connection_Buyer <> @OldID_Connection_Buyer 
@@ -1240,10 +1239,10 @@ AS
 							                where @ID_entity_D = I.Id_Buyer_Type;	
 
 							                SELECT 
-                                                  @NewId_Buyer_Type         = D.Id_Buyer_Type       ,
-							                	  @NewName                 	= D.Name                ,
-							                	  @NewSysTypeBuyerTypeName 	= D.SysTypeBuyerTypeName,  	
-							                	  @NewDescription      	    = D.[Description]      	
+                                                  @OldId_Buyer_Type         = D.Id_Buyer_Type       ,
+							                	  @OldName                 	= D.Name                ,
+							                	  @OldSysTypeBuyerTypeName 	= D.SysTypeBuyerTypeName,  	
+							                	  @OldDescription      	    = D.[Description]      	
 							                FROM Deleted D																		 
 											 where @ID_entity_D = D.Id_Buyer_Type; 
 
@@ -1868,7 +1867,14 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try 
-								  
+							                SELECT 
+							                    @NewID_Condition_of_the_item       = I.ID_Condition_of_the_item     ,
+							                	@NewName_Condition_of_the_item     = I.Name_Condition_of_the_item   ,
+							                	@NewSysNameConditionTypeOfTheItem  = I.SysNameConditionTypeOfTheItem,
+							                	@NewDescription                    = I.[Description]        	  
+							                FROM inserted I									 
+							                where @ID_entity_D = I.ID_Condition_of_the_item;
+											
                                            SELECT 
 							                    @OldID_Condition_of_the_item       = D.ID_Condition_of_the_item     ,
 							                	@OldName_Condition_of_the_item     = D.Name_Condition_of_the_item   ,
@@ -1876,14 +1882,7 @@ AS
 							                	@OldDescription                    = D.[Description]  					
 							                FROM Deleted D
 											where @ID_entity_D = D.ID_Condition_of_the_item;
-
-							                SELECT 
-							                    @NewID_Condition_of_the_item       = I.ID_Condition_of_the_item     ,
-							                	@NewName_Condition_of_the_item     = I.Name_Condition_of_the_item   ,
-							                	@NewSysNameConditionTypeOfTheItem  = I.SysNameConditionTypeOfTheItem,
-							                	@NewDescription                    = I.[Description]        	  
-							                FROM inserted I									 
-							                where @ID_entity_D = I.ID_Condition_of_the_item;																			 
+																			 
 
                                            IF @NewID_Condition_of_the_item  <> @OldID_Condition_of_the_item  
 							                  begin
@@ -2197,15 +2196,6 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-								        SELECT 
-                                              @OldID_Connection_Buyer = D.ID_Connection_Buyer,
-							            	  @OldPassword            = D.Password           ,
-							            	  @OldLogin               = D.Login              ,
-							            	  @OldDate_Created        = D.Date_Created       ,
-							            	  @OldDescription      	  = D.[Description]      	
-							            FROM Deleted D
-										where @ID_entity_D = D.ID_Connection_Buyer 
-
 							            SELECT 
                                               @NewID_Connection_Buyer = I.ID_Connection_Buyer,
 							            	  @NewPassword            = I.Password           ,
@@ -2214,6 +2204,15 @@ AS
 							            	  @NewDescription      	  = I.[Description]      	
 							            FROM inserted I									 
 							            where @ID_entity_D = I.ID_Connection_Buyer
+
+								        SELECT 
+                                              @OldID_Connection_Buyer = D.ID_Connection_Buyer,
+							            	  @OldPassword            = D.Password           ,
+							            	  @OldLogin               = D.Login              ,
+							            	  @OldDate_Created        = D.Date_Created       ,
+							            	  @OldDescription      	  = D.[Description]      	
+							            FROM Deleted D
+										where @ID_entity_D = D.ID_Connection_Buyer 
 																	 
 
                                         IF @NewPassword <> @OldPassword 
@@ -2528,17 +2527,6 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 						         begin try
-
-								 SELECT 
-								     @OldID_Currency       =   ID_Currency     ,
-									 @OldFull_name_rus     =   Full_name_rus   ,
-									 @OldFull_name_eng     =   Full_name_eng   ,
-									 @OldAbbreviation_rus  =   Abbreviation_rus,
-									 @OldAbbreviation_eng  =   Abbreviation_eng,
-									 @OldDescription       =   [Description]     
-								 FROM   Deleted D 
-								 where @ID_entity_D = D.ID_Currency 
-
 								 SELECT 
 								     @NewID_Currency       =   ID_Currency     ,
 								 	 @NewFull_name_rus     =   Full_name_rus   ,
@@ -2549,7 +2537,15 @@ AS
 								 FROM   Deleted D 
 								 where @ID_entity_D = D.ID_Currency 
 
-
+								 SELECT 
+								     @OldID_Currency       =   ID_Currency     ,
+									 @OldFull_name_rus     =   Full_name_rus   ,
+									 @OldFull_name_eng     =   Full_name_eng   ,
+									 @OldAbbreviation_rus  =   Abbreviation_rus,
+									 @OldAbbreviation_eng  =   Abbreviation_eng,
+									 @OldDescription       =   [Description]     
+								 FROM   Deleted D 
+								 where @ID_entity_D = D.ID_Currency 
                          
                             IF @NewFull_name_rus <> @OldFull_name_rus 
 							   begin
@@ -3232,18 +3228,6 @@ AS
 						    while @@FETCH_STATUS  = 0
 						          begin
 							           begin try
-                                           SELECT 
-                                               @OldId_Data_Orders     =  D.Id_Data_Orders  ,
-									           @OldID_Employee        =  D.ID_Employee     ,
-									           @OldID_Orders          =  D.ID_Orders       ,
-									           @OldId_buyer           =  D.Id_buyer        ,
-									           @OldID_Exemplar        =  D.ID_Exemplar     ,
-									           @OldID_Transaction     =  D.ID_Transaction  ,
-									           @OldDate_Data_Orders   =  D.Date_Data_Orders,
-									           @OldDescription        =  D.[Description]        							
-							             FROM Deleted D	
-										 where @ID_entity_D = D.Id_Data_Orders;
-
 							             SELECT 
                                                 @NewId_Data_Orders    =  I.Id_Data_Orders  ,
 							             		@NewID_Employee       =  I.ID_Employee     ,
@@ -3255,6 +3239,18 @@ AS
 							             		@NewDescription       =  I.[Description]         	
 							             FROM inserted I	
 										 where @ID_entity_D = I.Id_Data_Orders;
+
+                                           SELECT 
+                                               @OldId_Data_Orders     =  D.Id_Data_Orders  ,
+									           @OldID_Employee        =  D.ID_Employee     ,
+									           @OldID_Orders          =  D.ID_Orders       ,
+									           @OldId_buyer           =  D.Id_buyer        ,
+									           @OldID_Exemplar        =  D.ID_Exemplar     ,
+									           @OldID_Transaction     =  D.ID_Transaction  ,
+									           @OldDate_Data_Orders   =  D.Date_Data_Orders,
+									           @OldDescription        =  D.[Description]        							
+							             FROM Deleted D	
+										 where @ID_entity_D = D.Id_Data_Orders;
 																	 
                                          IF @NewID_Employee <> @OldID_Employee
 							                begin
@@ -3611,27 +3607,6 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-								        SELECT 
-							                @OldID_Exemplar             	= D.ID_Exemplar             ,
-							            	@OldId_Item                 	= D.Id_Item                 ,
-							            	@OldID_Currency             	= D.ID_Currency             ,
-							            	@OldID_Storage_location     	= D.ID_Storage_location     ,
-							            	@OldKeySource               	= D.KeySource               ,
-							            	@OldSerial_number           	= D.Serial_number           ,
-							            	@OldID_Condition_of_the_item	= D.ID_Condition_of_the_item,
-							            	@OldOld_Price_no_NDS        	= D.Old_Price_no_NDS        ,
-							            	@OldRefund                  	= D.Refund                  ,
-							            	@OldDate_Refund             	= D.Date_Refund             ,
-							            	@OldReturn_Note             	= D.Return_Note             ,
-							            	@OldOld_Price_NDS           	= D.Old_Price_NDS           ,
-							            	@OldJSON_Size_Volume        	= D.JSON_Size_Volume        ,
-							            	@OldNew_Price_NDS           	= D.New_Price_NDS           ,
-							            	@OldNew_Price_no_NDS        	= D.New_Price_no_NDS        ,
-							            	@OldDate_Created                = D.Date_Created            , 
-							            	@OldDescription                 = D.[Description]        	  					
-							            FROM Deleted D																		 
-										where @ID_entity_D = D.ID_Exemplar;
-								       
 							            SELECT 
 							                @NewID_Exemplar             	= I.ID_Exemplar             , 
 							            	@NewId_Item                 	= I.Id_Item                 ,
@@ -3652,6 +3627,27 @@ AS
 							            	@NewDescription                 = I.[Description]        	  
 							            FROM inserted I
 										where @ID_entity_D = I.ID_Exemplar;	
+
+								        SELECT 
+							                @OldID_Exemplar             	= D.ID_Exemplar             ,
+							            	@OldId_Item                 	= D.Id_Item                 ,
+							            	@OldID_Currency             	= D.ID_Currency             ,
+							            	@OldID_Storage_location     	= D.ID_Storage_location     ,
+							            	@OldKeySource               	= D.KeySource               ,
+							            	@OldSerial_number           	= D.Serial_number           ,
+							            	@OldID_Condition_of_the_item	= D.ID_Condition_of_the_item,
+							            	@OldOld_Price_no_NDS        	= D.Old_Price_no_NDS        ,
+							            	@OldRefund                  	= D.Refund                  ,
+							            	@OldDate_Refund             	= D.Date_Refund             ,
+							            	@OldReturn_Note             	= D.Return_Note             ,
+							            	@OldOld_Price_NDS           	= D.Old_Price_NDS           ,
+							            	@OldJSON_Size_Volume        	= D.JSON_Size_Volume        ,
+							            	@OldNew_Price_NDS           	= D.New_Price_NDS           ,
+							            	@OldNew_Price_no_NDS        	= D.New_Price_no_NDS        ,
+							            	@OldDate_Created                = D.Date_Created            , 
+							            	@OldDescription                 = D.[Description]        	  					
+							            FROM Deleted D																		 
+										where @ID_entity_D = D.ID_Exemplar;								      
 
 
                                           IF @NewId_Item  <> @OldId_Item  
@@ -4575,6 +4571,24 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+										SELECT 
+                                               @NewID_Orders           =  I.ID_Orders         ,
+							            	   @NewID_status           =  I.ID_status    	  ,
+							            	   @NewID_TypeOrders       =  I.ID_TypeOrders	  ,
+							            	   @NewID_Currency         =  I.ID_Currency  	  ,
+											   @NewID_OrderAssignment  =  I.ID_OrderAssignment,
+											   @NewID_OrderCategory	   =  I.ID_OrderCategory  ,
+							            	   @NewDate                =  I.Date              ,         --convert(datetime,Date,109),     
+							            	   @NewPayment_Date        =  I.Payment_Date      ,         --convert(datetime,Payment_Date,109),
+							            	   @NewAmount              =  I.Amount       	  ,
+							            	   @NewAmountCurr          =  I.AmountCurr   	  ,
+							            	   @NewAmountNDS           =  I.AmountNDS    	  ,
+							            	   @NewAmountCurrNDS       =  I.AmountCurrNDS	  ,
+							            	   @NewNum                 =  I.Num          	  ,
+							            	   @NewDescription         =  I.[Description]  
+							            FROM inserted I									 
+										where @ID_entity_D = I.ID_Orders
+
 
 							            SELECT 
 							                   @OldID_Orders           =  D.ID_Orders         ,
@@ -4593,24 +4607,6 @@ AS
 							            	   @OldDescription         =  D.[Description]  
 							            FROM Deleted D																		 
 										where @ID_entity_D = D.ID_Orders
-
-										SELECT 
-                                               @NewID_Orders           =  I.ID_Orders         ,
-							            	   @NewID_status           =  I.ID_status    	  ,
-							            	   @NewID_TypeOrders       =  I.ID_TypeOrders	  ,
-							            	   @NewID_Currency         =  I.ID_Currency  	  ,
-											   @NewID_OrderAssignment  =  I.ID_OrderAssignment,
-											   @NewID_OrderCategory	   =  I.ID_OrderCategory  ,
-							            	   @NewDate                =  I.Date              ,         --convert(datetime,Date,109),     
-							            	   @NewPayment_Date        =  I.Payment_Date      ,         --convert(datetime,Payment_Date,109),
-							            	   @NewAmount              =  I.Amount       	  ,
-							            	   @NewAmountCurr          =  I.AmountCurr   	  ,
-							            	   @NewAmountNDS           =  I.AmountNDS    	  ,
-							            	   @NewAmountCurrNDS       =  I.AmountCurrNDS	  ,
-							            	   @NewNum                 =  I.Num          	  ,
-							            	   @NewDescription         =  I.[Description]  
-							            FROM inserted I									 
-										where @ID_entity_D = I.ID_Orders
 
 
                                         IF @NewID_status <> @OldID_status 
@@ -5324,6 +5320,22 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								        SELECT 
+							                @NewID_Storage_location     	= I.ID_Storage_location     ,
+							            	@NewID_Type_Storage_location	= I.ID_Type_Storage_location,
+											@NewId_Status                   = I.Id_Status               ,
+							            	@NewKeySource               	= I.KeySource               ,
+							            	@NewName                    	= I.Name                    ,
+							            	@NewCountry                 	= I.Country                 ,
+							            	@NewCity                    	= I.City                    ,
+							            	@NewAdress                  	= I.Adress                  ,
+							            	@NewMail                    	= I.Mail                    ,
+							            	@NewPhone                   	= I.Phone                   ,
+							            	@NewDate_Created                = I.Date_Created            ,
+							            	@NewDescription                 = I.[Description]        	  
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Storage_location;
+
 						                SELECT 
 							                @OldID_Storage_location     	= D.ID_Storage_location     ,
 							            	@OldID_Type_Storage_location	= D.ID_Type_Storage_location,
@@ -5339,22 +5351,6 @@ AS
 							            	@OldDescription                 = D.[Description]        	  					
 							            FROM Deleted D	
 										 where @ID_entity_D = D.ID_Storage_location
-
-							            SELECT 
-							                @NewID_Storage_location     	= I.ID_Storage_location     ,
-							            	@NewID_Type_Storage_location	= I.ID_Type_Storage_location,
-											@NewId_Status                   = I.Id_Status               ,
-							            	@NewKeySource               	= I.KeySource               ,
-							            	@NewName                    	= I.Name                    ,
-							            	@NewCountry                 	= I.Country                 ,
-							            	@NewCity                    	= I.City                    ,
-							            	@NewAdress                  	= I.Adress                  ,
-							            	@NewMail                    	= I.Mail                    ,
-							            	@NewPhone                   	= I.Phone                   ,
-							            	@NewDate_Created                = I.Date_Created            ,
-							            	@NewDescription                 = I.[Description]        	  
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Storage_location;
 																	 
 
                                         IF @NewID_Type_Storage_location  <> @OldID_Type_Storage_location  
@@ -5629,6 +5625,9 @@ AS
 
 GO
 
+
+GO
+
 CREATE TABLE TRANSACTION_Audit
 (
     AuditID                bigint IDENTITY(1,1)  not null,
@@ -5737,21 +5736,6 @@ AS
 						    while @@FETCH_STATUS  = 0
 						          begin
 							          begin try								 
-							                
-							                SELECT  
-                                                  @OldID_Transaction          = D.ID_Transaction          ,
-							                	  @OldID_Currency             = D.ID_Currency            	,
-							                	  @OldID_Transaction_status   = D.ID_Transaction_status  	,
-							                	  @OldID_Currency_Rate        = D.ID_Currency_Rate       	,
-							                	  @OldTransaction_Date        = D.Transaction_Date       	,
-							                	  @OldKeySource               = D.KeySource              	,
-							                	  @OldTransaction_name_sender = D.Transaction_name_sender	,
-							                	  @OldJSON_Transaction_sender = D.JSON_Transaction_sender	,
-							                	  @OldTransaction_Amount      = D.Transaction_Amount     	,
-							                	  @OldDescription             = D.[Description]                           
-							                FROM Deleted D
-											where @ID_entity_D = D.ID_Transaction; 
-
 											SELECT  
                                                   @NewID_Transaction          = I.ID_Transaction          ,
 							                	  @NewID_Currency             = I.ID_Currency            	,
@@ -5764,7 +5748,21 @@ AS
 							                	  @NewTransaction_Amount      = I.Transaction_Amount     	,
 							                	  @NewDescription             = I.[Description]                      
 							                FROM inserted I
-											where @ID_entity_D = I.ID_Transaction;	
+											where @ID_entity_D = I.ID_Transaction;
+											
+							                SELECT  
+                                                  @OldID_Transaction          = D.ID_Transaction          ,
+							                	  @OldID_Currency             = D.ID_Currency            	,
+							                	  @OldID_Transaction_status   = D.ID_Transaction_status  	,
+							                	  @OldID_Currency_Rate        = D.ID_Currency_Rate       	,
+							                	  @OldTransaction_Date        = D.Transaction_Date       	,
+							                	  @OldKeySource               = D.KeySource              	,
+							                	  @OldTransaction_name_sender = D.Transaction_name_sender	,
+							                	  @OldJSON_Transaction_sender = D.JSON_Transaction_sender	,
+							                	  @OldTransaction_Amount      = D.Transaction_Amount     	,
+							                	  @OldDescription             = D.[Description]                           
+							                FROM Deleted D
+											where @ID_entity_D = D.ID_Transaction; 	
 
 
                                             IF @NewID_Currency <> @OldID_Currency 
@@ -6111,15 +6109,6 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
-                                            SELECT  
-							                     @OldID_Transaction_status    = D.ID_Transaction_status ,
-							                	 @OldTypeTransactionName      = D.TypeTransactionName   ,
-							                	 @OldSysTypeTransactionName   = D.SysTypeTransactionName,
-							                	 @OldDescription              = D.[Description]          
-							                FROM Deleted D
-											where @ID_entity_D = D.ID_Transaction_status;
-
-
 							                SELECT  
 							                     @NewID_Transaction_status    = I.ID_Transaction_status , 
 							                	 @NewTypeTransactionName      = I.TypeTransactionName   ,
@@ -6127,6 +6116,14 @@ AS
 							                	 @NewDescription              = I.[Description]           
 							                FROM inserted I									 
 							                where @ID_entity_D = I.ID_Transaction_status;
+
+                                            SELECT  
+							                     @OldID_Transaction_status    = D.ID_Transaction_status ,
+							                	 @OldTypeTransactionName      = D.TypeTransactionName   ,
+							                	 @OldSysTypeTransactionName   = D.SysTypeTransactionName,
+							                	 @OldDescription              = D.[Description]          
+							                FROM Deleted D
+											where @ID_entity_D = D.ID_Transaction_status;
 
                                             IF @NewTypeTransactionName <> @OldTypeTransactionName 
 							                   begin
@@ -6426,14 +6423,6 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							        begin try
-                                            SELECT 
-                                                    @OldID_product_measurement     =  D.ID_product_measurement   ,
-							                		@OldProduct_measurement_Name   =  D.Product_measurement_Name ,
-							                		@OldSysProductMeasurementName  =  D.SysProductMeasurementName,
-							                		@OldDescription                =  D.[Description]         								
-							                FROM Deleted D
-											where @ID_entity_D = D.ID_product_measurement;
-
 							                SELECT 
 							                        @NewID_product_measurement     =  I.ID_product_measurement   ,
 							                		@NewProduct_measurement_Name   =  I.Product_measurement_Name ,
@@ -6441,6 +6430,14 @@ AS
 							                		@NewDescription                =  I.[Description]         	
 							                FROM inserted I
 											where @ID_entity_D = I.ID_product_measurement;
+
+                                            SELECT 
+                                                    @OldID_product_measurement     =  D.ID_product_measurement   ,
+							                		@OldProduct_measurement_Name   =  D.Product_measurement_Name ,
+							                		@OldSysProductMeasurementName  =  D.SysProductMeasurementName,
+							                		@OldDescription                =  D.[Description]         								
+							                FROM Deleted D
+											where @ID_entity_D = D.ID_product_measurement;
 							                																		 
                                             IF @NewProduct_measurement_Name <> @OldProduct_measurement_Name
 							                   begin
@@ -7055,19 +7052,19 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
-									       SELECT @OldId_TypeItem     = D.Id_TypeItem    , 
-                                                  @OldTypeItemName    = D.TypeItemName   , 
-                                                  @OldSysTypeItemName = D.SysTypeItemName,
-                                                  @OldDescription     = D.[Description]
-                                           FROM deleted D
-										   where @ID_entity_D = D.Id_TypeItem;
-
 							               SELECT @NewId_TypeItem     = I.Id_TypeItem    ,
 							                      @NewTypeItemName    = I.TypeItemName   , 
 							                      @NewSysTypeItemName = I.SysTypeItemName,
 							                      @NewDescription     = I.[Description]
 							               FROM inserted I
 										   where @ID_entity_D = I.Id_TypeItem;
+
+									       SELECT @OldId_TypeItem     = D.Id_TypeItem    , 
+                                                  @OldTypeItemName    = D.TypeItemName   , 
+                                                  @OldSysTypeItemName = D.SysTypeItemName,
+                                                  @OldDescription     = D.[Description]
+                                           FROM deleted D
+										   where @ID_entity_D = D.Id_TypeItem;
 							               
                                           IF @NewTypeItemName <> @OldTypeItemName 
 							                 begin
@@ -7366,12 +7363,12 @@ AS
 
 
 							          SELECT 
-							                 @NewID_TypeOrders     = D.ID_TypeOrders     ,
-							                 @NewTypeOrdersName    = D.TypeOrdersName    ,
-							                 @NewTypeOrdersSysName = D.TypeOrdersSysName ,
-							                 @NewDescription       = D.[Description]      
-							          FROM inserted D									 
-							          where @ID_entity_D = D.ID_TypeOrders 
+							                 @NewID_TypeOrders     = I.ID_TypeOrders     ,
+							                 @NewTypeOrdersName    = I.TypeOrdersName    ,
+							                 @NewTypeOrdersSysName = I.TypeOrdersSysName ,
+							                 @NewDescription       = I.[Description]      
+							          FROM inserted I									 
+							          where @ID_entity_D = I.ID_TypeOrders 
 
 							          SELECT 
                                              @OldID_TypeOrders     = D.ID_TypeOrders     ,
@@ -7695,6 +7692,19 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+							            SELECT 
+                                              @NewID_Branch   = I.ID_Branch     ,
+											  @NewId_Country  = I.Id_Country  	,
+											  @NewCity        = I.City        	,
+											  @NewAddress     = I.[Address]     ,
+											  @NewName_Branch = I.Name_Branch 	,
+											  @NewMail        = I.Mail        	,
+											  @NewPhone       = I.Phone       	,
+											  @NewPostal_Code = I.Postal_Code 	,
+											  @NewINN         = I.INN         	,
+											  @NewDescription = I.[Description]    	
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Branch;
 
                                         SELECT 
                                               @OldID_Branch   = D.ID_Branch     ,
@@ -7709,20 +7719,6 @@ AS
 											  @OldDescription = D.[Description]   							
 							            FROM Deleted D
 										where @ID_entity_D = D.ID_Branch;
-
-							            SELECT 
-                                              @NewID_Branch   = I.ID_Branch     ,
-											  @NewId_Country  = I.Id_Country  	,
-											  @NewCity        = I.City        	,
-											  @NewAddress     = I.[Address]     ,
-											  @NewName_Branch = I.Name_Branch 	,
-											  @NewMail        = I.Mail        	,
-											  @NewPhone       = I.Phone       	,
-											  @NewPostal_Code = I.Postal_Code 	,
-											  @NewINN         = I.INN         	,
-											  @NewDescription = I.[Description]    	
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Branch;
 
 
                                        IF @NewId_Country <> @OldId_Country 
@@ -8073,6 +8069,14 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+							            SELECT 
+                                               @NewID_Connection_String = I.ID_Connection_String,
+											   @NewPassword             = I.[Password]          ,  
+											   @NewLogin                = I.[Login]             ,  
+											   @NewDate_Created         = I.Date_Created        ,
+											   @NewDescription          = I.[Description]          	
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Connection_String;
 
                                         SELECT 
                                                @OldID_Connection_String = D.ID_Connection_String,
@@ -8082,15 +8086,6 @@ AS
 											   @OldDescription          = D.[Description]          							
 							            FROM Deleted D
 										where @ID_entity_D = D.ID_Connection_String;
-
-							            SELECT 
-                                               @NewID_Connection_String = I.ID_Connection_String,
-											   @NewPassword             = I.[Password]          ,  
-											   @NewLogin                = I.[Login]             ,  
-											   @NewDate_Created         = I.Date_Created        ,
-											   @NewDescription          = I.[Description]          	
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Connection_String;
 
 							           IF @NewPassword <> @OldPassword 
 							              begin
@@ -8401,22 +8396,21 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-								     
-									 SELECT  
-									     @OldId_Country        =   D.Id_Country       ,
-										 @OldName_Country      =   D.Name_Country     ,
-										 @OldName_English      =   D.Name_English     ,
-										 @OldCod_Country_Phone =   D.Cod_Country_Phone
-									 FROM   Deleted D 
-									 where @ID_entity_D = D.Id_Country 
-
 									 SELECT 
 										@NewId_Country       	 = I.Id_Country       ,
 										@NewName_Country     	 = I.Name_Country     ,
 										@NewName_English     	 = I.Name_English     ,
 										@NewCod_Country_Phone    = I.Cod_Country_Phone 
 									 FROM inserted I  
-									 where @ID_entity_D = I.Id_Country;					
+									 where @ID_entity_D = I.Id_Country;	
+									 
+									 SELECT  
+									     @OldId_Country        =   D.Id_Country       ,
+										 @OldName_Country      =   D.Name_Country     ,
+										 @OldName_English      =   D.Name_English     ,
+										 @OldCod_Country_Phone =   D.Cod_Country_Phone
+									 FROM   Deleted D 
+									 where @ID_entity_D = D.Id_Country 				
 														
                                      
 									 IF @NewName_Country <> @OldName_Country 
@@ -8735,7 +8729,17 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-								       
+							            SELECT
+										    @NewID_Department            = I.ID_Department          ,
+											@NewID_Head_Department     	 = I.ID_Head_Department     ,
+											@NewID_Vice_Head_Department	 = I.ID_Vice_Head_Department,
+											@NewName_Department        	 = I.Name_Department        ,
+											@NewID_Branch              	 = I.ID_Branch              ,
+											@NewDepartment_Code        	 = I.Department_Code        ,
+											@NewDescription            	 = I.[Description]            		
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Department;
+										
                                         SELECT 
 										    @OldID_Department            = D.ID_Department          ,
 											@OldID_Head_Department     	 = D.ID_Head_Department     ,
@@ -8746,17 +8750,6 @@ AS
 											@OldDescription            	 = D.[Description]            						
 							            FROM Deleted D
 										where @ID_entity_D = D.ID_Department;
-
-							            SELECT
-										    @OldID_Department            = I.ID_Department          ,
-											@OldID_Head_Department     	 = I.ID_Head_Department     ,
-											@OldID_Vice_Head_Department	 = I.ID_Vice_Head_Department,
-											@OldName_Department        	 = I.Name_Department        ,
-											@OldID_Branch              	 = I.ID_Branch              ,
-											@OldDepartment_Code        	 = I.Department_Code        ,
-											@OldDescription            	 = I.[Description]            		
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Department;
 
 
                                        IF @NewID_Head_Department <> @OldID_Head_Department 
@@ -9129,36 +9122,6 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-								     
-									 SELECT  
-									     @OldID_Employee               	  = D.ID_Employee               ,	
-										 @OldID_Department             	  = D.ID_Department             ,
-										 @OldID_Group                  	  = D.ID_Group                  ,
-										 @OldID_The_Subgroup           	  = D.ID_The_Subgroup           ,
-										 @OldID_Passport               	  = D.ID_Passport               ,
-										 @OldID_Branch                 	  = D.ID_Branch                 ,
-										 @OldID_Post                   	  = D.ID_Post                   ,
-										 @OldID_Status_Employee        	  = D.ID_Status_Employee        ,
-										 @OldID_Connection_String      	  = D.ID_Connection_String      ,
-										 @OldID_Chief                  	  = D.ID_Chief                  ,
-										 @OldName                      	  = D.Name                      ,
-										 @OldSurName                   	  = D.SurName                   ,
-										 @OldLastName                  	  = D.LastName                  ,
-										 @OldDate_Of_Hiring            	  = D.Date_Of_Hiring            ,
-										 @OldDate_Card_Created_Employee	  = D.Date_Card_Created_Employee,
-										 @OldResidential_Address       	  = D.Residential_Address       ,
-										 @OldHome_Phone                	  = D.Home_Phone                ,
-										 @OldCell_Phone                	  = D.Cell_Phone                ,
-										 @OldImage_Employees           	  = D.Image_Employees           ,
-										 @OldWork_Phone                	  = D.Work_Phone                ,
-										 @OldMail                      	  = D.Mail                      ,
-										 @OldPol                       	  = D.Pol                       ,
-										 @OldDate_Of_Dismissal         	  = D.Date_Of_Dismissal         ,
-										 @OldDate_Of_Birth             	  = D.Date_Of_Birth             ,
-										 @OldDescription                  = D.[Description]               
-									 FROM   Deleted D 
-									 where @ID_entity_D = D.ID_Employee; 
-
                                      SELECT  
 									     @NewID_Employee               	  = I.ID_Employee               ,	
 										 @NewID_Department             	  = I.ID_Department             ,
@@ -9186,7 +9149,36 @@ AS
 										 @NewDate_Of_Birth             	  = I.Date_Of_Birth             ,
 										 @NewDescription                  = I.[Description]               
 									 FROM inserted I  
-									 where @ID_entity_D = I.ID_Employee;					
+									 where @ID_entity_D = I.ID_Employee;	
+									 
+									 SELECT  
+									     @OldID_Employee               	  = D.ID_Employee               ,	
+										 @OldID_Department             	  = D.ID_Department             ,
+										 @OldID_Group                  	  = D.ID_Group                  ,
+										 @OldID_The_Subgroup           	  = D.ID_The_Subgroup           ,
+										 @OldID_Passport               	  = D.ID_Passport               ,
+										 @OldID_Branch                 	  = D.ID_Branch                 ,
+										 @OldID_Post                   	  = D.ID_Post                   ,
+										 @OldID_Status_Employee        	  = D.ID_Status_Employee        ,
+										 @OldID_Connection_String      	  = D.ID_Connection_String      ,
+										 @OldID_Chief                  	  = D.ID_Chief                  ,
+										 @OldName                      	  = D.Name                      ,
+										 @OldSurName                   	  = D.SurName                   ,
+										 @OldLastName                  	  = D.LastName                  ,
+										 @OldDate_Of_Hiring            	  = D.Date_Of_Hiring            ,
+										 @OldDate_Card_Created_Employee	  = D.Date_Card_Created_Employee,
+										 @OldResidential_Address       	  = D.Residential_Address       ,
+										 @OldHome_Phone                	  = D.Home_Phone                ,
+										 @OldCell_Phone                	  = D.Cell_Phone                ,
+										 @OldImage_Employees           	  = D.Image_Employees           ,
+										 @OldWork_Phone                	  = D.Work_Phone                ,
+										 @OldMail                      	  = D.Mail                      ,
+										 @OldPol                       	  = D.Pol                       ,
+										 @OldDate_Of_Dismissal         	  = D.Date_Of_Dismissal         ,
+										 @OldDate_Of_Birth             	  = D.Date_Of_Birth             ,
+										 @OldDescription                  = D.[Description]               
+									 FROM   Deleted D 
+									 where @ID_entity_D = D.ID_Employee; 				
 														
                                      IF @NewID_Department <> @OldID_Department 
 							              begin
@@ -9672,6 +9664,17 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+							            SELECT 
+	                                        @NewID_Group           = I.ID_Group          ,
+											@NewID_Head_Group      = I.ID_Head_Group     ,
+											@NewID_Vice_Head_Group = I.ID_Vice_Head_Group,
+											@NewID_Department      = I.ID_Department     ,
+											@NewName_Group         = I.Name_Group        ,
+											@NewID_Branch          = I.ID_Branch         ,
+											@NewDepartment_Code    = I.Department_Code   ,
+											@NewDescription        = I.[Description]       	
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Group;
 
                                         SELECT 
                                             @OldID_Group           = D.ID_Group          ,
@@ -9684,18 +9687,6 @@ AS
 											@OldDescription        = D.[Description]       							
 							            FROM Deleted D
 										where @ID_entity_D = D.ID_Group;
-
-							            SELECT 
-	                                        @NewID_Group           = I.ID_Group          ,
-											@NewID_Head_Group      = I.ID_Head_Group     ,
-											@NewID_Vice_Head_Group = I.ID_Vice_Head_Group,
-											@NewID_Department      = I.ID_Department     ,
-											@NewName_Group         = I.Name_Group        ,
-											@NewID_Branch          = I.ID_Branch         ,
-											@NewDepartment_Code    = I.Department_Code   ,
-											@NewDescription        = I.[Description]       	
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Group;
 
 
                                        IF @NewID_Head_Group <> @OldID_Head_Group
@@ -10039,6 +10030,17 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+							            SELECT 
+                                              @NewID_Passport    = I.ID_Passport    ,
+											  @NewNumber_Series  = I.Number_Series  ,
+											  @NewDate_Of_Issue  = I.Date_Of_Issue  ,
+											  @NewDepartment_Code= I.Department_Code,
+											  @NewIssued_By_Whom = I.Issued_By_Whom ,
+											  @NewRegistration   = I.Registration   ,
+											  @NewMilitary_Duty  = I.Military_Duty  ,
+											  @NewDescription    = I.[Description]      	
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Passport;
 
                                         SELECT 
                                               @OldID_Passport    = D.ID_Passport    ,
@@ -10051,18 +10053,6 @@ AS
 											  @OldDescription    = D.[Description]     							
 							            FROM Deleted D
 										where @ID_entity_D = D.ID_Passport;
-
-							            SELECT 
-                                              @NewID_Passport    = I.ID_Passport    ,
-											  @NewNumber_Series  = I.Number_Series  ,
-											  @NewDate_Of_Issue  = I.Date_Of_Issue  ,
-											  @NewDepartment_Code= I.Department_Code,
-											  @NewIssued_By_Whom = I.Issued_By_Whom ,
-											  @NewRegistration   = I.Registration   ,
-											  @NewMilitary_Duty  = I.Military_Duty  ,
-											  @NewDescription    = I.[Description]      	
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Passport;
 
                                        
 							           IF @NewNumber_Series <> @OldNumber_Series 
@@ -10402,17 +10392,6 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-
-                                        SELECT 
-                                              @OldID_Post         = D.ID_Post        , 
-											  @OldName_Post       = D.Name_Post      , 
-											  @OldID_Department   = D.ID_Department  , 
-											  @OldID_Group        = D.ID_Group       , 
-											  @OldID_The_Subgroup = D.ID_The_Subgroup, 
-											  @OldDescription     = D.[Description]         							
-							            FROM Deleted D
-										where @ID_entity_D = D.ID_Post;
-
 							            SELECT 
                                               @NewID_Post         = I.ID_Post        , 
 											  @NewName_Post       = I.Name_Post      , 
@@ -10423,7 +10402,15 @@ AS
 							            FROM inserted I									 
 							            where @ID_entity_D = I.ID_Post;
 
-
+                                        SELECT 
+                                              @OldID_Post         = D.ID_Post        , 
+											  @OldName_Post       = D.Name_Post      , 
+											  @OldID_Department   = D.ID_Department  , 
+											  @OldID_Group        = D.ID_Group       , 
+											  @OldID_The_Subgroup = D.ID_The_Subgroup, 
+											  @OldDescription     = D.[Description]         							
+							            FROM Deleted D
+										where @ID_entity_D = D.ID_Post;
                                        
 									   IF @NewName_Post <> @OldName_Post 
 							              begin
@@ -10738,6 +10725,13 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+							            SELECT 
+                                             @NewID_Status_Employee   = I.ID_Status_Employee  ,
+											 @NewName_Status_Employee = I.Name_Status_Employee,
+											 @NewDescription          = I.[Description]         	
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Status_Employee;
+
 
                                         SELECT 
  							                 @OldID_Status_Employee   = D.ID_Status_Employee  ,
@@ -10745,13 +10739,6 @@ AS
 											 @OldDescription          = D.[Description]                  
 							            FROM Deleted D
 										where @ID_entity_D = D.ID_Status_Employee;
-
-							            SELECT 
-                                             @OldID_Status_Employee   = I.ID_Status_Employee  ,
-											 @OldName_Status_Employee = I.Name_Status_Employee,
-											 @OldDescription          = I.[Description]         	
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Status_Employee;
 
 
 							           IF @NewName_Status_Employee <> @OldName_Status_Employee 
@@ -11058,20 +11045,6 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-
-                                        SELECT 
-										     @OldID_The_Subgroup           = D.ID_The_Subgroup          ,
-											 @OldID_Head_The_Subgroup      = D.ID_Head_The_Subgroup     ,
-											 @OldID_Vice_Head_The_Subgroup = D.ID_Vice_Head_The_Subgroup,
-											 @OldID_Group                  = D.ID_Group                 ,
-											 @OldName_The_Subgroup         = D.Name_The_Subgroup        ,
-											 @OldID_Branch                 = D.ID_Branch                ,
-											 @OldDepartment_Code           = D.Department_Code          ,
-											 @OldDescription               = D.[Description]            ,
-											 @OldID_Parent_The_Subgroup    = D.ID_Parent_The_Subgroup   
-							            FROM Deleted D
-										where @ID_entity_D = D.ID_The_Subgroup;
-
 							            SELECT 
 										     @NewID_The_Subgroup           = I.ID_The_Subgroup          ,
 											 @NewID_Head_The_Subgroup      = I.ID_Head_The_Subgroup     ,
@@ -11085,7 +11058,19 @@ AS
 							            FROM inserted I									 
 							            where @ID_entity_D = I.ID_The_Subgroup;
 
-                                       
+                                        SELECT 
+										     @OldID_The_Subgroup           = D.ID_The_Subgroup          ,
+											 @OldID_Head_The_Subgroup      = D.ID_Head_The_Subgroup     ,
+											 @OldID_Vice_Head_The_Subgroup = D.ID_Vice_Head_The_Subgroup,
+											 @OldID_Group                  = D.ID_Group                 ,
+											 @OldName_The_Subgroup         = D.Name_The_Subgroup        ,
+											 @OldID_Branch                 = D.ID_Branch                ,
+											 @OldDepartment_Code           = D.Department_Code          ,
+											 @OldDescription               = D.[Description]            ,
+											 @OldID_Parent_The_Subgroup    = D.ID_Parent_The_Subgroup   
+							            FROM Deleted D
+										where @ID_entity_D = D.ID_The_Subgroup;
+                                      
 							           IF @NewID_Head_The_Subgroup <> @OldID_Head_The_Subgroup
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Head_The_Subgroup = Old ->"' +  ISNULL(CAST(@OldID_Head_The_Subgroup AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Head_The_Subgroup AS NVARCHAR(50)),'') + '", ';
@@ -11759,20 +11744,20 @@ AS
 						       begin
 							      begin try
 							                SELECT 
-                                                  @OldID_OrderCategory     	= I.ID_OrderCategory    ,
-												  @OldOrderCategoryName   	= I.OrderCategoryName   ,
-												  @OldAbbreviation        	= I.Abbreviation        ,
-												  @OldOrderCategorySysName	= I.OrderCategorySysName,
-												  @OldDescription      	    = I.[Description]      	  
+                                                  @NewID_OrderCategory     	= I.ID_OrderCategory    ,
+												  @NewOrderCategoryName   	= I.OrderCategoryName   ,
+												  @NewAbbreviation        	= I.Abbreviation        ,
+												  @NewOrderCategorySysName	= I.OrderCategorySysName,
+												  @NewDescription      	    = I.[Description]      	  
 							                FROM inserted I									 
 							                where @ID_entity_D = I.ID_OrderCategory;	
 
 							                SELECT   
-											      @NewID_OrderCategory     	= D.ID_OrderCategory    ,
-												  @NewOrderCategoryName   	= D.OrderCategoryName   ,
-												  @NewAbbreviation        	= D.Abbreviation        ,
-												  @NewOrderCategorySysName	= D.OrderCategorySysName,
-												  @NewDescription      	    = D.[Description]      	  
+											      @OldID_OrderCategory     	= D.ID_OrderCategory    ,
+												  @OldOrderCategoryName   	= D.OrderCategoryName   ,
+												  @OldAbbreviation        	= D.Abbreviation        ,
+												  @OldOrderCategorySysName	= D.OrderCategorySysName,
+												  @OldDescription      	    = D.[Description]      	  
 							                FROM Deleted D																		 
 											 where @ID_entity_D = D.ID_OrderCategory; 
 
@@ -11991,6 +11976,7 @@ AS
                     END
 
 GO
+
 
 CREATE TABLE Storage_location_status_Audit
 (
@@ -12947,6 +12933,7 @@ AS
 
 GO
 
+
 set nocount,xact_abort on;
 go
 
@@ -13583,5 +13570,135 @@ CREATE FULLTEXT INDEX ON Orders_Audit_2 (ChangeDescription) KEY INDEX index_UNIQ
 --TRANSACTION_Audit_2
 CREATE FULLTEXT INDEX ON TRANSACTION_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_TRANSACTION_Audit
 CREATE FULLTEXT INDEX ON TRANSACTION_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_TRANSACTION_Audit_2
+
+go
+
+create view All_Branch
+as
+select 
+b.ID_Branch	           as 'ID_Филиала'
+,b.Id_Country		   as 'ID_Страны'
+,c.Name_Country		   as 'Наименование_страны'
+,c.Name_English		   as 'Наименование_на_английском'
+,c.Cod_Country_Phone   as 'Телефонный_код_страны'
+,b.City				   as 'Наименование_города_где_находится_филиал'
+,b.Address			   as 'Адрес_где_находится_филиал'
+,b.Name_Branch		   as 'Наименование_филиала'
+,b.Mail				   as 'Электроная_почта_филиала'
+,b.Phone			   as 'Телефон_филиала'
+,b.Postal_Code		   as 'Почтовый_индекс'
+,b.INN				   as 'ИНН'
+,b.Description         as 'Комментарии_к_филиалу'
+from Branch as b
+inner join Country as c on c.ID_Country = b.ID_Country
+
+go
+
+create view All_Endpoints_Grops
+as
+with s as(
+select distinct 
+ID_Parent_The_Subgroup
+from The_Subgroup 
+where  ID_Parent_The_Subgroup is not null
+), 
+s_2 as
+(
+select
+d.ID_The_Subgroup,
+f.ID_Parent_The_Subgroup
+from s as f 
+full outer join The_Subgroup as d on d.ID_The_Subgroup  = f.ID_Parent_The_Subgroup
+where  f.ID_Parent_The_Subgroup is null
+)
+select 
+d.ID_The_Subgroup
+,d.ID_Parent_The_Subgroup
+,d.Name_The_Subgroup
+from The_Subgroup as d inner join  s_2 as s on  s.ID_The_Subgroup =  d.ID_The_Subgroup  
+
+go
+
+create view All_Otdel
+as
+select 
+d.ID_Department		   as 'ID_Департамента'
+,d.Name_Department	   as 'Наименование_Департамента'
+,g.ID_Group			   as 'ID_Группы_или_отдела'
+,g.Name_Group		   as 'Наименование отдела'
+,t.ID_The_Subgroup	   as 'ID_Группы'
+,t.Name_The_Subgroup   as 'Наименование_группы'
+,t2.ID_The_Subgroup	   as 'ID_подгруппы'
+,t2.Name_The_Subgroup  as 'Наименование_подгруппы'
+from Department d 
+left join  [Group] as g on g.ID_Department = d.ID_Department
+left join  The_Subgroup as t on t.[ID_Group] = g.[ID_Group] and t.[ID_Parent_The_Subgroup] is null
+left join  The_Subgroup as t2 on t2.[ID_Parent_The_Subgroup] = t.[ID_The_Subgroup] 
+
+go
+
+create view All_Post_Department
+as
+select 
+ p.ID_Post                                as 'ID_Должности'
+,p.Name_Post                              as 'Наименование_должности'
+,p.ID_Department                          as 'ID_депортамента'
+,d.Name_Department 						  as 'Наименование_депортамента'
+,p.ID_Group                               as 'ID_Группы'
+,g.Name_Group							  as 'Наименование_группы'
+,p.ID_The_Subgroup                        as 'ID_ПодГруппы'   
+,eg.Name_The_Subgroup					  as 'Наименование_подгруппы'
+from Post p 
+inner join All_Endpoints_Grops as eg on  eg.ID_The_Subgroup       = p.ID_The_Subgroup
+inner join Department as d           on  d.ID_Department          = p.ID_Department
+inner join [Group] as g              on  g.ID_Group               = p.ID_Group
+
+go
+
+create view AllEmployees
+as
+select
+e.ID_Employee                             as 'ID_Сотрудника'
+,d.Name_Department 						  as 'Наименование_депортамента'
+,g.Name_Group							  as 'Наименование_группы'
+,tg.Name_The_Subgroup					  as 'Наименование_подгруппы'
+,p.Number_Series						  as 'Номер_серия_паспорта'
+,p.Date_Of_Issue						  as 'Дата_выдачи'
+,p.Department_Code						  as 'Код_депортамента'
+,p.Issued_By_Whom						  as 'Кем_выдан'
+,p.Registration							  as 'Регистрация'
+,p.Military_Duty						  as 'Прохождение_военной_службы'
+,b.City									  as 'Город_филиала'
+,b.Address								  as 'Адрес_филиала'
+,b.Name_Branch							  as 'Наименование_филиала'
+,ps.Name_Post							  as 'Наименование_должности'
+,c.Password								  as 'Пароль_УЗ'
+,c.Login								  as 'Логин_УЗ'
+,c.Date_Created							  as 'Дата_заведения_УЗ'
+,e.ID_Chief								  as 'Руководитель'
+,e.Name									  as 'Имя'
+,e.SurName								  as 'Фамилия'
+,e.LastName								  as 'Отчество'
+,e.Date_Of_Hiring						  as 'Дата_создания_карты_работника'
+,e.Date_Card_Created_Employee			  as 'Дата_приема_на_работу'
+,e.Residential_Address					  as 'Адрес_проживания'
+,e.Home_Phone							  as 'Домашний_телефон'
+,e.Cell_Phone							  as 'Сотовый_телефон'
+,e.Image_Employees						  as 'Фотография_сотрудника'
+,e.Work_Phone							  as 'Рабочий_телефон'
+,e.Mail									  as 'Электронная_почта_сотрудника'
+,e.Pol									  as 'Пол'
+,e.Date_Of_Dismissal					  as 'Дата_увольнения'
+,e.Date_Of_Birth 						  as 'Дата_Рождения'
+,s.Name_Status_Employee                   as 'Статус_карточки_сотрудника'
+from Employees as e
+inner join Department as d              on d.ID_Department          = e.ID_Department
+inner join [Group] as g                 on g.ID_Group               = e.ID_Group
+inner join All_Endpoints_Grops as tg    on tg.ID_The_Subgroup       = e.ID_The_Subgroup
+inner join Passport as p                on p.ID_Passport            = e.ID_Passport
+inner join Branch as b                  on b.ID_Branch              = e.ID_Branch
+inner join Post as ps                   on ps.ID_Post               = e.ID_Post
+inner join Connection_String as c       on c.ID_Connection_String   = e.ID_Connection_String
+inner join Status_Employee   as s       on s.ID_Status_Employee     = e.ID_Status_Employee
 
 go
