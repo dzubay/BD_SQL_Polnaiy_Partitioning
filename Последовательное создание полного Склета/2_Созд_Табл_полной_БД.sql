@@ -435,9 +435,9 @@ create table Storage_location                                                   
 ID_Storage_location        bigint              not null identity(1,1) check(ID_Storage_location != 0),   --ID Место хранение экземпляра
 ID_Type_Storage_location   bigint              not null,                                                 --ID Типа места хранение
 Id_Status                  bigint              not null,                                                 --ID Статуса Места Хранения
+Id_Country                 bigint              not null,                                                 --ID Страны
 KeySource                  bigint              null,                                                     --Источник ключа с другими БД или сервисами
 Name                       nvarchar(400)       not null,                                                 --Наименование места хранения
-Country                    nvarchar(200)       null,                                                     --Страна  места хранения
 City                       nvarchar(200)       null,                                                     --Город  места хранения
 Adress                     nvarchar(800)       not null,                                                 --Адрес места хранения
 Mail                       nvarchar(250)       null,                                                     --Электронная почта хранение экземпляра
@@ -448,6 +448,7 @@ constraint PK_ID_Storage_location          primary key (ID_Storage_location)
 )  on Products_Group
 
 go
+
 
 create table Condition_of_the_item                                                    -- Cостояние экземпляра
 (  

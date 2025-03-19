@@ -3273,19 +3273,6 @@ CREATE TABLE Item_Audit
 
 go
 
-CREATE TABLE Item_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    Id_Item                bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(Max)         null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
 
 CREATE TRIGGER trg_Item_Audit ON Item
 AFTER INSERT, UPDATE, DELETE
@@ -4523,7 +4510,6 @@ CREATE TABLE Storage_location_Audit
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on Products_Group;
 
-
 go
 
 CREATE TRIGGER trg_Storage_location_Audit ON Storage_location
@@ -4582,10 +4568,10 @@ AS
                            
                            DECLARE @OldID_Storage_location        bigint         ;
 						   DECLARE @OldID_Type_Storage_location   bigint         ;
-						   DECLARE @OldId_Status                  bigint         ; 
+						   DECLARE @OldId_Status                  bigint         ;
+						   DECLARE @OldId_Country                 bigint         ;
 						   DECLARE @OldKeySource                  bigint         ;
 						   DECLARE @OldName                       nvarchar(400)  ;
-						   DECLARE @OldCountry                    nvarchar(200)  ;
 						   DECLARE @OldCity                       nvarchar(200)  ;
 						   DECLARE @OldAdress                     nvarchar(800)  ;
 						   DECLARE @OldMail                       nvarchar(250)  ;
@@ -4595,10 +4581,10 @@ AS
 
                            DECLARE @NewID_Storage_location        bigint         ;
 						   DECLARE @NewID_Type_Storage_location   bigint         ;
-						   DECLARE @NewId_Status                  bigint         ; 
+						   DECLARE @NewId_Status                  bigint         ;
+						   DECLARE @NewId_Country                 bigint         ;
 						   DECLARE @NewKeySource                  bigint         ;
 						   DECLARE @NewName                       nvarchar(400)  ;
-						   DECLARE @NewCountry                    nvarchar(200)  ;
 						   DECLARE @NewCity                       nvarchar(200)  ;
 						   DECLARE @NewAdress                     nvarchar(800)  ;
 						   DECLARE @NewMail                       nvarchar(250)  ;
@@ -4625,9 +4611,9 @@ AS
 							                @NewID_Storage_location     	= I.ID_Storage_location     ,
 							            	@NewID_Type_Storage_location	= I.ID_Type_Storage_location,
 											@NewId_Status                   = I.Id_Status               ,
+											@NewId_Country                  = I.Id_Country              ,
 							            	@NewKeySource               	= I.KeySource               ,
 							            	@NewName                    	= I.Name                    ,
-							            	@NewCountry                 	= I.Country                 ,
 							            	@NewCity                    	= I.City                    ,
 							            	@NewAdress                  	= I.Adress                  ,
 							            	@NewMail                    	= I.Mail                    ,
@@ -4641,9 +4627,9 @@ AS
 							                @OldID_Storage_location     	= D.ID_Storage_location     ,
 							            	@OldID_Type_Storage_location	= D.ID_Type_Storage_location,
 											@OldId_Status                   = D.Id_Status               ,
+											@OldId_Country                  = D.Id_Country              ,
 							            	@OldKeySource               	= D.KeySource               ,
 							            	@OldName                    	= D.Name                    ,
-							            	@OldCountry                 	= D.Country                 ,
 							            	@OldCity                    	= D.City                    ,
 							            	@OldAdress                  	= D.Adress                  ,
 							            	@OldMail                    	= D.Mail                    ,
@@ -4664,6 +4650,11 @@ AS
                                             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Status  = Old ->"' +  ISNULL(CAST(@OldId_Status  AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewId_Status  AS NVARCHAR(20)),'') + '", ';
 							               end
 
+										IF @NewId_Country  <> @OldId_Country 
+							               begin
+                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Country  = Old ->"' +  ISNULL(CAST(@OldId_Country  AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewId_Country  AS NVARCHAR(20)),'') + '", ';
+							               end
+
 							            IF @NewKeySource <> @OldKeySource
 							               begin
 							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  KeySource = Old ->"' +  ISNULL(CAST(@OldKeySource AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewKeySource AS NVARCHAR(50)),'') + '", ';
@@ -4672,12 +4663,7 @@ AS
 							            IF @NewName <> @OldName
 							               begin
 							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> "' + isnull(@NewName,'') + '", ';
-							               end                  
-							            
-							            IF @NewCountry <> @OldCountry
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Country = Old ->"' +  ISNULL(@OldCountry,'') + ' " NEW -> "' + isnull(@NewCountry,'') + '", ';
-							               end
+							               end                  							            
 							            
 							            IF @NewCity <> @OldCity
 							               begin
@@ -4765,10 +4751,10 @@ AS
 
 							DECLARE @OldID_Storage_location_2        bigint         ;
 							DECLARE @OldID_Type_Storage_location_2   bigint         ;
-							DECLARE @OldId_Status_2                  bigint         ; 
+							DECLARE @OldId_Status_2                  bigint         ;
+							DECLARE @OldId_Country_2                 bigint         ;
 							DECLARE @OldKeySource_2                  bigint         ;
 							DECLARE @OldName_2                       nvarchar(400)  ;
-							DECLARE @OldCountry_2                    nvarchar(200)  ;
 							DECLARE @OldCity_2                       nvarchar(200)  ;
 							DECLARE @OldAdress_2                     nvarchar(800)  ;
 							DECLARE @OldMail_2                       nvarchar(250)  ;
@@ -4795,9 +4781,9 @@ AS
 							                        @OldID_Storage_location_2         = D.ID_Storage_location     ,
 							                    	@OldID_Type_Storage_location_2	  = D.ID_Type_Storage_location,
 													@OldId_Status_2                   = D.Id_Status               ,
+													@OldId_Country_2                  = D.Id_Country              ,
 							                    	@OldKeySource_2               	  = D.KeySource               ,
 							                    	@OldName_2                    	  = D.Name                    ,
-							                    	@OldCountry_2                 	  = D.Country                 ,
 							                    	@OldCity_2                    	  = D.City                    ,
 							                    	@OldAdress_2                  	  = D.Adress                  ,
 							                    	@OldMail_2                    	  = D.Mail                    ,
@@ -4811,9 +4797,9 @@ AS
 							                    + 'ID_Storage_location'      +' = "'+  ISNULL(CAST(@OldID_Storage_location_2     AS NVARCHAR(20)),'')+ '", '
 							                    + 'ID_Type_Storage_location' +' = "'+  ISNULL(CAST(@OldID_Type_Storage_location_2  AS NVARCHAR(20)),'')+ '", '
 												+ 'Id_Status'                +' = "'+  ISNULL(CAST(@OldId_Status_2  AS NVARCHAR(20)),'')+ '", '
+												+ 'Id_Country'               +' = "'+  ISNULL(CAST(@OldId_Country_2  AS NVARCHAR(20)),'')+ '", '
 							                    + 'KeySource'                +' = "'+  ISNULL(CAST(@OldKeySource_2 AS NVARCHAR(50)),'') + '", '
 							                    + 'Name'                     +' = "'+  ISNULL(@OldName_2,'')+ '", '				
-							                    + 'Country'                  +' = "'+  ISNULL(@OldCountry_2,'')+ '", '
 							                    + 'City'                     +' = "'+  ISNULL(@OldCity_2,'') + '", '
 							                    + 'Adress'                   +' = "'+  ISNULL(@OldAdress_2,'')+ '", '
 							                    + 'Mail'                     +' = "'+  ISNULL(@OldMail_2,'') + '", '
@@ -4923,9 +4909,6 @@ AS
                            deallocate cr_3
 
                     END
-
-GO
-
 
 GO
 
@@ -12233,6 +12216,7 @@ AS
                     END
 
 GO
+
 --rollback
 commit
 
