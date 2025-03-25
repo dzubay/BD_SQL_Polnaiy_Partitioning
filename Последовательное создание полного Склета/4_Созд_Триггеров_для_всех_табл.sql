@@ -3,6 +3,402 @@ go
 
 begin tran 
 
+
+CREATE TABLE Branch_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_Branch               bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Employee_Group;
+
+
+go
+
+CREATE TRIGGER trg_Branch_Audit ON Branch
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max) = '';
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                           	declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Branch,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Branch,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+
+
+							DECLARE @OldID_Branch     bigint        ;
+							DECLARE @OldId_Country    bigint        ;
+							DECLARE @OldCity          nvarchar(100) ;
+							DECLARE @OldAddress       nvarchar(300) ;
+							DECLARE @OldName_Branch   nvarchar(300) ;
+							DECLARE @OldMail          nvarchar(300) ;
+							DECLARE @OldPhone         nvarchar(15)  ;
+							DECLARE @OldPostal_Code   int           ;
+							DECLARE @OldINN           int           ;
+							DECLARE @OldDescription   nvarchar(4000);
+
+						   DECLARE @NewID_Branch     bigint        ;
+						   DECLARE @NewId_Country    bigint        ;
+						   DECLARE @NewCity          nvarchar(100) ;
+						   DECLARE @NewAddress       nvarchar(300) ;
+						   DECLARE @NewName_Branch   nvarchar(300) ;
+						   DECLARE @NewMail          nvarchar(300) ;
+						   DECLARE @NewPhone         nvarchar(15)  ;
+						   DECLARE @NewPostal_Code   int           ;
+						   DECLARE @NewINN           int           ;
+						   DECLARE @NewDescription   nvarchar(4000);
+
+
+						   declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								        set @ChangeDescription = ''
+
+								        SELECT 
+                                              @NewID_Branch   = I.ID_Branch     ,
+											  @NewId_Country  = I.Id_Country  	,
+											  @NewCity        = I.City        	,
+											  @NewAddress     = I.[Address]     ,
+											  @NewName_Branch = I.Name_Branch 	,
+											  @NewMail        = I.Mail        	,
+											  @NewPhone       = I.Phone       	,
+											  @NewPostal_Code = I.Postal_Code 	,
+											  @NewINN         = I.INN         	,
+											  @NewDescription = I.[Description]    	
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Branch;
+
+                                        SELECT 
+                                              @OldID_Branch   = D.ID_Branch     ,
+											  @OldId_Country  = D.Id_Country  	,
+											  @OldCity        = D.City        	,
+											  @OldAddress     = D.[Address]     ,
+											  @OldName_Branch = D.Name_Branch 	,
+											  @OldMail        = D.Mail        	,
+											  @OldPhone       = D.Phone       	,
+											  @OldPostal_Code = D.Postal_Code 	,
+											  @OldINN         = D.INN         	,
+											  @OldDescription = D.[Description]   							
+							            FROM Deleted D
+										where @ID_entity_D = D.ID_Branch;
+
+                                       IF isnull(cast(@NewId_Country AS NVARCHAR(50)),'null')  <> isnull(cast(@OldId_Country AS NVARCHAR(50)),'null') 
+							              begin
+                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Country = Old ->"' +  ISNULL(CAST(@OldId_Country AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewId_Country AS NVARCHAR(50)),'') + '", ';
+							              end
+
+							           IF isnull(@NewCity,'null') <> isnull(@OldCity,'null') 
+							              begin
+							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  City = Old ->"' +  ISNULL(@OldCity,'') + ' " NEW -> " ' + isnull(@NewCity,'') + '", ';
+							              end
+                                                                                               
+							           IF isnull(@NewAddress,'null') <> isnull(@OldAddress,'null') 
+							              begin
+							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Address = Old ->"' +  ISNULL(@OldAddress,'') + ' " NEW -> " ' + isnull(@NewAddress,'') + '", ';
+							              end
+
+							           IF isnull(@NewName_Branch,'null') <> isnull(@OldName_Branch,'null') 
+							              begin
+							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Branch = Old ->"' +  ISNULL(@OldName_Branch,'') + ' " NEW -> " ' + isnull(@NewName_Branch,'') + '", ';
+							              end
+
+							           IF isnull(@NewMail,'null') <> isnull(@OldMail,'null') 
+							              begin
+							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Mail = Old ->"' +  ISNULL(@OldMail,'') + ' " NEW -> " ' + isnull(@NewMail,'') + '", ';
+							              end							          
+
+							           IF isnull(@NewPhone,'null') <> isnull(@OldPhone,'null') 
+							              begin
+							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Phone = Old ->"' +  ISNULL(@OldPhone,'') + ' " NEW -> " ' + isnull(@NewPhone,'') + '", ';
+							              end
+
+                           	          IF isnull(cast(@NewPostal_Code AS NVARCHAR(50)),'null') <> isnull(cast(@OldPostal_Code AS NVARCHAR(50)),'null')
+							              begin
+                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Postal_Code = Old ->"' +  ISNULL(CAST(@OldPostal_Code AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewPostal_Code AS NVARCHAR(50)),'') + '", ';
+							              end
+										  
+									  IF isnull(cast(@NewINN AS NVARCHAR(50)),'null') <> isnull(cast(@OldINN AS NVARCHAR(50)),'null')
+							              begin
+                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  INN = Old ->"' +  ISNULL(CAST(@OldINN AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewINN AS NVARCHAR(50)),'') + '", ';
+							              end
+
+                                       IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							              begin
+                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                          end
+
+                                       SET @ChangeDescription = 'Updated: ' + ' ID_Branch = "' +  isnull(cast(@OldID_Branch as nvarchar(50)),'')+ '", ' + isnull(@ChangeDescription,'')
+                                        --Удаляем запятую на конце
+                                       IF LEN(@ChangeDescription) > 0
+                                           SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                       
+									   INSERT  INTO dbo.Branch_Audit
+                                        ( 
+                                         ID_Branch,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                        )
+                                       SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									   set @ChangeDescription = ''
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+
+  					
+                END
+            ELSE
+                BEGIN
+                            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+                            insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Branch,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+							DECLARE @OldID_Branch_2     bigint        ;
+							DECLARE @OldId_Country_2    bigint        ;
+							DECLARE @OldCity_2          nvarchar(100) ;
+							DECLARE @OldAddress_2       nvarchar(300) ;
+							DECLARE @OldName_Branch_2   nvarchar(300) ;
+							DECLARE @OldMail_2          nvarchar(300) ;
+							DECLARE @OldPhone_2         nvarchar(15)  ;
+							DECLARE @OldPostal_Code_2   int           ;
+							DECLARE @OldINN_2           int           ;
+							DECLARE @OldDescription_2   nvarchar(1000);
+
+
+
+							declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						         begin
+							         begin try
+									        set @ChangeDescription = ''
+
+                                            SELECT 
+											     @OldID_Branch_2   = D.ID_Branch     ,
+												 @OldId_Country_2  = D.Id_Country  	,
+												 @OldCity_2        = D.City        	,
+												 @OldAddress_2     = D.[Address]     ,
+												 @OldName_Branch_2 = D.Name_Branch 	,
+												 @OldMail_2        = D.Mail        	,
+												 @OldPhone_2       = D.Phone       	,
+												 @OldPostal_Code_2 = D.Postal_Code 	,
+												 @OldINN_2         = D.INN         	,
+												 @OldDescription_2 = D.[Description]   
+							                FROM deleted D									 
+											where @ID_entity_D_2 = D.ID_Branch;
+
+                                            SET @ChangeDescription = 'Deleted: '
+							                + 'ID_Branch'           +' = "'+  ISNULL(CAST(@OldID_Branch_2     AS NVARCHAR(50)),'')     + '", '
+							                + 'Id_Country'          +' = "'+  ISNULL(CAST(@OldId_Country_2  AS NVARCHAR(50)),'') + '", '
+							                + 'City'                +' = "'+  ISNULL(@OldCity_2,'')+ '", '				
+							                + 'Address'             +' = "'+  ISNULL(@OldAddress_2,'')+ '", '
+							                + 'Name_Branch'         +' = "'+  ISNULL(@OldName_Branch_2,'') + '", '
+							                + 'Mail'                +' = "'+  ISNULL(@OldMail_2,'')+ '", '	   + '", '
+							                + 'Phone'               +' = "'+  ISNULL(@OldPhone_2,'')+ '", '
+								            + 'Postal_Code'         +' = "'+  ISNULL(CAST(@OldPostal_Code_2  AS NVARCHAR(50)),'') + '", '
+							                + 'INN'                 +' = "'+  ISNULL(CAST(@OldINN_2  AS NVARCHAR(50)),'') + '", '
+							                + 'Description'         +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+						                       SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Branch_Audit
+                                           ( 
+                                            ID_Branch,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                END  
+        END
+    ELSE
+        BEGIN
+                    declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_Branch,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+					DECLARE @ID_entity_I_2    bigint       ;
+				    DECLARE @login_name_2_I_2 nvarchar(128);
+				    DECLARE @ModifiedDate_I_2 DATETIME     ;
+				    DECLARE @Name_action_I_2  char(1)      ;
+
+                    declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						  begin
+							   begin try
+							           set @ChangeDescription = ''
+
+                                       SET @ChangeDescription = 'Inserted: '
+                                         + 'ID_Branch = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                                       
+									   INSERT  INTO dbo.Branch_Audit
+                                       ( 
+                                        ID_Branch,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                       )
+                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									   set @ChangeDescription = ''
+           
+		                       end try
+							   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+                    END
+
+GO
+
+
 CREATE TABLE Buyer_Audit
 (
     AuditID                bigint IDENTITY(1,1)  not null,
@@ -24,7 +420,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max) = '';
 
 
     SELECT  @login_name = login_name
@@ -117,7 +513,9 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-							            SELECT 
+								        set @ChangeDescription = ''
+
+								        SELECT 
 							                @NewId_buyer             = I.Id_buyer           , 
 							            	@NewID_Connection_Buyer  = I.ID_Connection_Buyer,
 							            	@NewId_Status            = I.Id_Status          ,
@@ -154,68 +552,72 @@ AS
 										where @ID_entity_D = D.Id_buyer;
 
 
-                                       IF @NewID_Connection_Buyer <> @OldID_Connection_Buyer 
+                                       IF ISNULL(CAST(@NewID_Connection_Buyer AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Connection_Buyer AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Connection_Buyer = Old ->"' +  ISNULL(CAST(@OldID_Connection_Buyer AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Connection_Buyer AS NVARCHAR(50)),'') + '", ';
 							              end
                                        
-							           IF @NewId_Status <> @OldId_Status
+							           IF ISNULL(CAST(@NewId_Status  AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldId_Status  AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Status = Old ->"' +  ISNULL(CAST(@OldId_Status AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewId_Status AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                       IF @NewId_Buyer_Type <> @OldId_Buyer_Type
+                                       IF ISNULL(CAST(@NewId_Buyer_Type AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldId_Buyer_Type AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Buyer_Type = Old ->"' +  ISNULL(CAST(@OldId_Buyer_Type AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewId_Buyer_Type AS NVARCHAR(50)),'') + '", ';
 							              end
 
-							           IF @NewName <> @OldName 
+							           IF isnull(@NewName,'null') <> isnull(@OldName,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> " ' + isnull(@NewName,'') + '", ';
 							              end
                                                                                                
-							           IF @NewSurName <> @OldSurName 
+							           IF isnull(@NewSurName,'null') <> isnull(@OldSurName,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SurName = Old ->"' +  ISNULL(@OldSurName,'') + ' " NEW -> " ' + isnull(@NewSurName,'') + '", ';
 							              end
-							           IF @NewLastName <> @OldLastName 
+
+							           IF isnull(@NewLastName,'null') <> isnull(@OldLastName,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  LastName = Old ->"' +  ISNULL(@OldLastName,'') + ' " NEW -> " ' + isnull(@NewLastName,'') + '", ';
 							              end
-							           IF @NewMail <> @OldMail 
+
+							           IF isnull(@NewMail,'null') <> isnull(@OldMail,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Mail = Old ->"' +  ISNULL(@OldMail,'') + ' " NEW -> " ' + isnull(@NewMail,'') + '", ';
 							              end
 							           
-							           IF @NewPol <> @OldPol 
+							           IF ISNULL(CAST(@NewPol AS NVARCHAR(1)),'null') <> ISNULL(CAST(@OldPol AS NVARCHAR(1)),'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Pol = Old ->"' +  ISNULL(CAST(@OldPol AS NVARCHAR(1)),'') + ' " NEW -> " ' + isnull(CAST(@NewPol AS NVARCHAR(1)),'') + '", ';
 							              end
-							           IF @NewPhone <> @OldPhone 
+
+							           IF isnull(@NewPhone,'null') <> isnull(@OldPhone,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Phone = Old ->"' +  ISNULL(@OldPhone,'') + ' " NEW -> " ' + isnull(@NewPhone,'') + '", ';
 							              end
                            	           			
-							           IF @NewDate_Of_Birth <> @OldDate_Of_Birth
+							           IF ISNULL(CAST(Format(@NewDate_Of_Birth,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Of_Birth,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Of_Birth = Old ->"' +  ISNULL(CAST(Format(@OldDate_Of_Birth,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Of_Birth,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							              end
 
-									   IF @NewPremium <> @OldPremium
+									   IF ISNULL(CAST(@NewPremium AS NVARCHAR(1)),'null') <> ISNULL(CAST(@OldPremium AS NVARCHAR(1)),'null')
 							                 begin
 							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Premium = Old ->"' +  ISNULL(CAST(@OldPremium AS NVARCHAR(1)),'') + ' " NEW -> "' + isnull(CAST(@NewPremium AS NVARCHAR(1)),'') + '", ';
 							                 end
 
-                                       IF @NewThe_resident <> @OldThe_resident
+                                       IF ISNULL(CAST(@NewThe_resident AS NVARCHAR(1)),'null') <> ISNULL(CAST(@OldThe_resident AS NVARCHAR(1)),'null')
 							                 begin
 							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  The_resident = Old ->"' +  ISNULL(CAST(@OldThe_resident AS NVARCHAR(1)),'') + ' " NEW -> "' + isnull(CAST(@NewThe_resident AS NVARCHAR(1)),'') + '", ';
 							                 end
 							           
-                                       IF @NewDescription <> @OldDescription
+                                       IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                           end
-                                       SET @ChangeDescription = 'Updated: ' + ' Id_buyer = "' +  isnull(cast(@OldId_buyer as nvarchar(20)),'')+ '" ' + @ChangeDescription
+
+                                       SET @ChangeDescription = 'Updated: ' + ' Id_buyer = "' +  isnull(cast(@OldId_buyer as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
                                         --Удаляем запятую на конце
                                        IF LEN(@ChangeDescription) > 0
                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -226,7 +628,7 @@ AS
                                         )
                                        SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null 
+									   set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -301,6 +703,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									        set @ChangeDescription = ''
+
                                             SELECT 
 							                    @OldId_buyer_2             = D.Id_buyer           , 
 							                	@OldID_Connection_Buyer_2  = D.ID_Connection_Buyer,
@@ -344,7 +748,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -402,8 +806,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							           set @ChangeDescription = ''
+
                                        SET @ChangeDescription = 'Inserted: '
-                                         + 'Id_buyer = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'Id_buyer = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                        
 									   INSERT  INTO dbo.Buyer_Audit
                                        ( 
@@ -411,7 +817,7 @@ AS
                                        )
                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null
+									   set @ChangeDescription = ''
            
 		                       end try
 							   begin catch
@@ -436,324 +842,6 @@ AS
 
 GO
 
-CREATE TABLE Buyer_Type_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    Id_Buyer_Type          bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)         null
- --   PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Costomers_Group;
-
-
-go
-
-CREATE TRIGGER trg_Buyer_Type_Audit ON Buyer_Type
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-				           declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Buyer_Type,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Buyer_Type,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                                          	                      
-
-						   DECLARE @OldId_Buyer_Type            bigint          ;
-						   DECLARE @OldName                  	nvarchar(300)  	;
-						   DECLARE @OldSysTypeBuyerTypeName  	nvarchar(300) 	;
-						   DECLARE @OldDescription      	    nvarchar(4000)	;
-
-
-						   DECLARE @NewId_Buyer_Type            bigint          ;
-						   DECLARE @NewName                  	nvarchar(300)  	;
-						   DECLARE @NewSysTypeBuyerTypeName 	nvarchar(300) 	;
-						   DECLARE @NewDescription      	    nvarchar(4000)	;
-                       
-					       declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-							                SELECT 
-                                                  @NewId_Buyer_Type         = I.Id_Buyer_Type       ,
-							                	  @NewName                 	= I.Name                ,
-							                	  @NewSysTypeBuyerTypeName 	= I.SysTypeBuyerTypeName,
-							                	  @NewDescription      	    = I.[Description]      	
-							                FROM inserted I									 
-							                where @ID_entity_D = I.Id_Buyer_Type;	
-
-							                SELECT 
-                                                  @OldId_Buyer_Type         = D.Id_Buyer_Type       ,
-							                	  @OldName                 	= D.Name                ,
-							                	  @OldSysTypeBuyerTypeName 	= D.SysTypeBuyerTypeName,  	
-							                	  @OldDescription      	    = D.[Description]      	
-							                FROM Deleted D																		 
-											 where @ID_entity_D = D.Id_Buyer_Type; 
-
-
-                                            IF @NewName <> @OldName 
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> " ' + isnull(@NewName,'') + '", ';
-							                   end
-                                            
-							                IF @NewSysTypeBuyerTypeName <> @OldSysTypeBuyerTypeName 
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeBuyerTypeName = Old ->"' +  ISNULL(@OldSysTypeBuyerTypeName,'') + ' " NEW -> " ' + isnull(@NewSysTypeBuyerTypeName,'') + '", ';
-							                   end
-                                                                                                    
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            
-                                            SET @ChangeDescription = 'Updated: ' + ' Id_Buyer_Type = "' +  isnull(cast(@OldId_Buyer_Type as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                            
-                                            INSERT  INTO dbo.Buyer_Type_Audit
-                                            ( 
-                                             Id_Buyer_Type,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null 
-
-								   end try
-								   begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr                               					
-                END
-            ELSE
-                BEGIN
-				            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Buyer_Type,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-                            DECLARE @OldId_Buyer_Type_2         bigint        ;
-							DECLARE @OldName_2                  nvarchar(300) ;
-							DECLARE @OldSysTypeBuyerTypeName_2	nvarchar(300) ;
-							DECLARE @OldDescription_2      	    nvarchar(4000);
-
-                            declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						        begin
-							       begin try
-							               SELECT 
-                                              @OldId_Buyer_Type_2         = D.Id_Buyer_Type       ,
-							               	  @OldName_2                  = D.Name                ,
-							               	  @OldSysTypeBuyerTypeName_2  = D.SysTypeBuyerTypeName,
-							               	  @OldDescription_2      	  = D.[Description]      		  
-							               FROM deleted D									 
-										   where @ID_entity_D_2 = D.Id_Buyer_Type;
-
-                                           SET @ChangeDescription = 'Deleted: '
-							               + 'Id_Buyer_Type'         +' = "'+  ISNULL(CAST(@OldId_Buyer_Type_2  AS NVARCHAR(50)),'')+ '", '
-							               + 'Name'                  +' = "'+  ISNULL(@OldName_2,'')+ '", '
-							               + 'SysTypeBuyerTypeName'  +' = "'+  ISNULL(@OldSysTypeBuyerTypeName_2,'')+ '", '
-							               + '[Description]'         +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
-
-                                           IF LEN(@ChangeDescription) > 0
-                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                           INSERT  INTO dbo.Buyer_Type_Audit
-                                           ( 
-                                            Id_Buyer_Type,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									       set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-
-
-                END  
-        END
-    ELSE
-        BEGIN
-		           declare @t_I_I table 
-				   (
-				   Id_Num         bigint        identity(1,1) not null,
-				   ID_entity      bigint        null,
-				   login_name     nvarchar(128) null,
-				   ModifiedDate   DATETIME      null,
-				   Name_action    char(1)       null
-				   );
-
-
-				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-				   SELECT I.Id_Buyer_Type,@login_name,GETDATE(),'I'  
-				   FROM  inserted I
-
-				   DECLARE @ID_entity_I_2    bigint       ;
-				   DECLARE @login_name_2_I_2 nvarchar(128);
-				   DECLARE @ModifiedDate_I_2 DATETIME     ;
-				   DECLARE @Name_action_I_2  char(1)      ;
-		 
-		           declare cr_3 cursor local fast_forward for
-						   
-				   select 
-				   ID_entity   
-				   ,login_name  
-				   ,ModifiedDate
-				   ,Name_action 
-				   from @t_I_I 
-                      open cr_3       
-				   
-				   fetch next from cr_3 into 
-				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-				   while @@FETCH_STATUS  = 0
-						  begin
-							   begin try
-                                     SET @ChangeDescription = 'Inserted: '
-                                         + 'Id_Buyer_Type = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                      INSERT  INTO dbo.Buyer_Type_Audit
-                                      ( 
-                                       Id_Buyer_Type,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                      )
-                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									 set @ChangeDescription = null              
-
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-                    END
-
-GO
 
 CREATE TABLE Buyer_status_Audit
 (
@@ -776,7 +864,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max) = '';
 
 
     SELECT  @login_name = login_name
@@ -850,6 +938,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								            set @ChangeDescription = ''
+
 							                SELECT 
                                                   @NewId_Status                 = I.Id_Status                  ,
 							                	  @NewName                  	= I.Name                  	 ,
@@ -867,22 +957,22 @@ AS
 											 where @ID_entity_D = D.Id_Status; 
 
 
-                                            IF @NewName <> @OldName 
+                                            IF isnull(@NewName,'null') <> isnull(@OldName,'null') 
 							                   begin
                                                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> " ' + isnull(@NewName,'') + '", ';
 							                   end
                                             
-							                IF @NewSysTypeBuyerStatusName <> @OldSysTypeBuyerStatusName 
+							                IF isnull(@NewSysTypeBuyerStatusName,'null') <> isnull(@OldSysTypeBuyerStatusName,'null') 
 							                   begin
 							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeBuyerStatusName = Old ->"' +  ISNULL(@OldSysTypeBuyerStatusName,'') + ' " NEW -> " ' + isnull(@NewSysTypeBuyerStatusName,'') + '", ';
 							                   end
                                                                                                     
-                                            IF @NewDescription <> @OldDescription
+                                            IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							                   begin
                                                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                                end
                                             
-                                            SET @ChangeDescription = 'Updated: ' + ' Id_Status = "' +  isnull(cast(@OldId_Status as nvarchar(20)),'')+ '" ' + @ChangeDescription
+                                            SET @ChangeDescription = 'Updated: ' + ' Id_Status = "' +  isnull(cast(@OldId_Status as nvarchar(20)),'')+ '" ' + isnull(@ChangeDescription,'')
                                              --Удаляем запятую на конце
                                             IF LEN(@ChangeDescription) > 0
                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -893,7 +983,7 @@ AS
                                             )
                                             SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									        set @ChangeDescription = null 
+									        set @ChangeDescription = '' 
 
 								   end try
 								   begin catch
@@ -956,6 +1046,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						        begin
 							       begin try
+								           set @ChangeDescription = ''
+
 							               SELECT 
                                               @OldId_Status_2               = D.Id_Status               ,
 							               	  @OldName_2                    = D.Name                    ,
@@ -979,7 +1071,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 
 								  end try
 								  begin catch
@@ -1040,8 +1132,10 @@ AS
 				   while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							         set @ChangeDescription = ''
+
                                      SET @ChangeDescription = 'Inserted: '
-                                         + 'Id_Status = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'Id_Status = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                     
                                       INSERT  INTO dbo.Buyer_status_Audit
                                       ( 
@@ -1049,7 +1143,333 @@ AS
                                       )
                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									 set @ChangeDescription = null              
+									 set @ChangeDescription = ''              
+
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+                    END
+
+GO
+
+
+CREATE TABLE Buyer_Type_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    Id_Buyer_Type          bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)         null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Costomers_Group;
+
+
+go
+
+CREATE TRIGGER trg_Buyer_Type_Audit ON Buyer_Type
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)= '';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+				           declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Buyer_Type,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Buyer_Type,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                                          	                      
+
+						   DECLARE @OldId_Buyer_Type            bigint          ;
+						   DECLARE @OldName                  	nvarchar(300)  	;
+						   DECLARE @OldSysTypeBuyerTypeName  	nvarchar(300) 	;
+						   DECLARE @OldDescription      	    nvarchar(4000)	;
+
+
+						   DECLARE @NewId_Buyer_Type            bigint          ;
+						   DECLARE @NewName                  	nvarchar(300)  	;
+						   DECLARE @NewSysTypeBuyerTypeName 	nvarchar(300) 	;
+						   DECLARE @NewDescription      	    nvarchar(4000)	;
+                       
+					       declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								            set @ChangeDescription = ''
+
+							                SELECT 
+                                                  @NewId_Buyer_Type         = I.Id_Buyer_Type       ,
+							                	  @NewName                 	= I.Name                ,
+							                	  @NewSysTypeBuyerTypeName 	= I.SysTypeBuyerTypeName,
+							                	  @NewDescription      	    = I.[Description]      	
+							                FROM inserted I									 
+							                where @ID_entity_D = I.Id_Buyer_Type;	
+
+							                SELECT 
+                                                  @OldId_Buyer_Type         = D.Id_Buyer_Type       ,
+							                	  @OldName                 	= D.Name                ,
+							                	  @OldSysTypeBuyerTypeName 	= D.SysTypeBuyerTypeName,  	
+							                	  @OldDescription      	    = D.[Description]      	
+							                FROM Deleted D																		 
+											 where @ID_entity_D = D.Id_Buyer_Type; 
+
+
+                                            IF isnull(@NewName,'null') <> isnull(@OldName,'null') 
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> " ' + isnull(@NewName,'') + '", ';
+							                   end
+                                            
+							                IF isnull(@NewSysTypeBuyerTypeName,'null') <> isnull(@OldSysTypeBuyerTypeName,'null') 
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeBuyerTypeName = Old ->"' +  ISNULL(@OldSysTypeBuyerTypeName,'') + ' " NEW -> " ' + isnull(@NewSysTypeBuyerTypeName,'') + '", ';
+							                   end
+                                                                                                    
+                                            IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            
+                                            SET @ChangeDescription = 'Updated: ' + ' Id_Buyer_Type = "' +  isnull(cast(@OldId_Buyer_Type as nvarchar(20)),'')+ '" ' + isnull(@ChangeDescription,'')
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                            
+                                            INSERT  INTO dbo.Buyer_Type_Audit
+                                            ( 
+                                             Id_Buyer_Type,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = '' 
+
+								   end try
+								   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr                               					
+                END
+            ELSE
+                BEGIN
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Buyer_Type,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+                            DECLARE @OldId_Buyer_Type_2         bigint        ;
+							DECLARE @OldName_2                  nvarchar(300) ;
+							DECLARE @OldSysTypeBuyerTypeName_2	nvarchar(300) ;
+							DECLARE @OldDescription_2      	    nvarchar(4000);
+
+                            declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						        begin
+							       begin try
+								           set @ChangeDescription = ''
+
+							               SELECT 
+                                              @OldId_Buyer_Type_2         = D.Id_Buyer_Type       ,
+							               	  @OldName_2                  = D.Name                ,
+							               	  @OldSysTypeBuyerTypeName_2  = D.SysTypeBuyerTypeName,
+							               	  @OldDescription_2      	  = D.[Description]      		  
+							               FROM deleted D									 
+										   where @ID_entity_D_2 = D.Id_Buyer_Type;
+
+                                           SET @ChangeDescription = 'Deleted: '
+							               + 'Id_Buyer_Type'         +' = "'+  ISNULL(CAST(@OldId_Buyer_Type_2  AS NVARCHAR(50)),'')+ '", '
+							               + 'Name'                  +' = "'+  ISNULL(@OldName_2,'')+ '", '
+							               + 'SysTypeBuyerTypeName'  +' = "'+  ISNULL(@OldSysTypeBuyerTypeName_2,'')+ '", '
+							               + '[Description]'         +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Buyer_Type_Audit
+                                           ( 
+                                            Id_Buyer_Type,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+
+                END  
+        END
+    ELSE
+        BEGIN
+		           declare @t_I_I table 
+				   (
+				   Id_Num         bigint        identity(1,1) not null,
+				   ID_entity      bigint        null,
+				   login_name     nvarchar(128) null,
+				   ModifiedDate   DATETIME      null,
+				   Name_action    char(1)       null
+				   );
+
+
+				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+				   SELECT I.Id_Buyer_Type,@login_name,GETDATE(),'I'  
+				   FROM  inserted I
+
+				   DECLARE @ID_entity_I_2    bigint       ;
+				   DECLARE @login_name_2_I_2 nvarchar(128);
+				   DECLARE @ModifiedDate_I_2 DATETIME     ;
+				   DECLARE @Name_action_I_2  char(1)      ;
+		 
+		           declare cr_3 cursor local fast_forward for
+						   
+				   select 
+				   ID_entity   
+				   ,login_name  
+				   ,ModifiedDate
+				   ,Name_action 
+				   from @t_I_I 
+                      open cr_3       
+				   
+				   fetch next from cr_3 into 
+				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+				   while @@FETCH_STATUS  = 0
+						  begin
+							   begin try
+							         set @ChangeDescription = ''
+
+                                     SET @ChangeDescription = 'Inserted: '
+                                         + 'Id_Buyer_Type = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                      INSERT  INTO dbo.Buyer_Type_Audit
+                                      ( 
+                                       Id_Buyer_Type,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                      )
+                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									 set @ChangeDescription = ''              
 
 								end try
 								begin catch
@@ -1096,7 +1516,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max) = '';
 
 
     SELECT  @login_name = login_name
@@ -1168,6 +1588,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try 
+								            set @ChangeDescription = ''
+
 							                SELECT 
 							                    @NewID_Condition_of_the_item       = I.ID_Condition_of_the_item     ,
 							                	@NewName_Condition_of_the_item     = I.Name_Condition_of_the_item   ,
@@ -1182,29 +1604,24 @@ AS
 							                	@OldSysNameConditionTypeOfTheItem  = D.SysNameConditionTypeOfTheItem,
 							                	@OldDescription                    = D.[Description]  					
 							                FROM Deleted D
-											where @ID_entity_D = D.ID_Condition_of_the_item;
-																			 
-
-                                           IF @NewID_Condition_of_the_item  <> @OldID_Condition_of_the_item  
-							                  begin
-                                               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Condition_of_the_item  = Old ->"' +  ISNULL(CAST(@OldID_Condition_of_the_item  AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Condition_of_the_item  AS NVARCHAR(20)),'') + '", ';
-							                  end
+											where @ID_entity_D = D.ID_Condition_of_the_item;																			 
                                            
-							               IF @NewName_Condition_of_the_item <> @OldName_Condition_of_the_item
+							               IF isnull(@NewName_Condition_of_the_item,'null') <> isnull(@OldName_Condition_of_the_item,'null')
 							                  begin
 							                   SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Condition_of_the_item = Old ->"' +  ISNULL(@OldName_Condition_of_the_item,'') + ' " NEW -> "' + isnull(@NewName_Condition_of_the_item,'') + '", ';
 							                  end
 							               
-							               IF @NewSysNameConditionTypeOfTheItem <> @OldSysNameConditionTypeOfTheItem
+							               IF isnull(@NewSysNameConditionTypeOfTheItem,'null') <> isnull(@OldSysNameConditionTypeOfTheItem,'null')
 							                  begin
 							                   SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysNameConditionTypeOfTheItem = Old ->"' +  ISNULL(@OldSysNameConditionTypeOfTheItem,'') + ' " NEW -> "' + isnull(@NewSysNameConditionTypeOfTheItem,'') + '", ';
 							                  end                  
 							               
-                                           IF @NewDescription <> @OldDescription
+                                           IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							                  begin
                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> "' + ISNULL(@NewDescription,'') + '",';
                                               end
-                                           SET @ChangeDescription = 'Updated: ' + ' ID_Condition_of_the_item = "' +  isnull(cast(@OldID_Condition_of_the_item as nvarchar(20)),'')+ '" ' + @ChangeDescription
+
+                                           SET @ChangeDescription = 'Updated: ' + ' ID_Condition_of_the_item = "' +  isnull(cast(@OldID_Condition_of_the_item as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'')
                                             --Удаляем запятую на конце
                                            IF LEN(@ChangeDescription) > 0
                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -1215,7 +1632,7 @@ AS
                                            )
                                              SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null 
+									       set @ChangeDescription = '' 
                                             
 								  end try
 								  begin catch
@@ -1282,6 +1699,7 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									    set @ChangeDescription = ''
 
                                         SELECT 
 							                @OldID_Condition_of_the_item_2      = D.ID_Condition_of_the_item     ,
@@ -1292,7 +1710,7 @@ AS
 							            where @ID_entity_D_2 = D.ID_Condition_of_the_item
 
                                         SET @ChangeDescription = 'Deleted: '
-							            + 'ID_Condition_of_the_item'      +' = "'+  ISNULL(CAST(@OldID_Condition_of_the_item_2 AS NVARCHAR(20)),'')+ '", '
+							            + 'ID_Condition_of_the_item'      +' = "'+  ISNULL(CAST(@OldID_Condition_of_the_item_2 AS NVARCHAR(50)),'')+ '", '
 							            + 'Name_Condition_of_the_item'    +' = "'+  ISNULL(@OldName_Condition_of_the_item_2,'')+ '", '
 							            + 'SysNameConditionTypeOfTheItem' +' = "'+  ISNULL(@OldSysNameConditionTypeOfTheItem_2,'') + '", '
             				            + 'Description'                   +' = "'+  ISNULL(@OldDescription_2,'') + '", '
@@ -1306,7 +1724,7 @@ AS
                                         )
                                          SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									    set @ChangeDescription = null
+									    set @ChangeDescription = ''
                                      
 								  end try
 								  begin catch
@@ -1365,8 +1783,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							         set @ChangeDescription = ''
+
                                      SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Condition_of_the_item = "' + CAST(@ID_entity_D_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_Condition_of_the_item = "' + CAST(@ID_entity_D_2 AS NVARCHAR(50)) + '" ';
                                      
 									 INSERT  INTO dbo.Condition_of_the_item_Audit
                                      ( 
@@ -1374,7 +1794,7 @@ AS
                                      )
                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									set @ChangeDescription = null
+									set @ChangeDescription = ''
 							  end try
 							  begin catch
 								     if xact_state() in (1, -1)
@@ -1421,7 +1841,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max) = '';
 
 
     SELECT  @login_name = login_name
@@ -1497,6 +1917,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								        set @ChangeDescription = ''
+
 							            SELECT 
                                               @NewID_Connection_Buyer = I.ID_Connection_Buyer,
 							            	  @NewPassword            = I.Password           ,
@@ -1516,25 +1938,27 @@ AS
 										where @ID_entity_D = D.ID_Connection_Buyer 
 																	 
 
-                                        IF @NewPassword <> @OldPassword 
+                                        IF isnull(@NewPassword,'null') <> isnull(@OldPassword,'null') 
 							               begin
                                             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Password = Old ->"' +  ISNULL(@OldPassword,'') + ' " NEW -> " ' + isnull(@NewPassword,'') + '", ';
 							               end
                                         
-							            IF @NewLogin <> @OldLogin 
+							            IF isnull(@NewLogin,'null') <> isnull(@OldLogin,'null') 
 							               begin
 							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Login = Old ->"' +  ISNULL(@OldLogin,'') + ' " NEW -> " ' + isnull(@NewLogin,'') + '", ';
 							               end
-							            IF @NewDate_Created <> @OldDate_Created
+
+							            IF ISNULL(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							               begin
 							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							               end
                                                                                                 
-                                        IF @NewDescription <> @OldDescription
+                                        IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							               begin
                                             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                            end
-                                        SET @ChangeDescription = 'Updated: ' + ' ID_Connection_Buyer = "' +  isnull(cast(@OldID_Connection_Buyer as nvarchar(20)),'')+ '" ' + @ChangeDescription
+
+                                        SET @ChangeDescription = 'Updated: ' + ' ID_Connection_Buyer = "' +  isnull(cast(@OldID_Connection_Buyer as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'')
                                          --Удаляем запятую на конце
                                         IF LEN(@ChangeDescription) > 0
                                             SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -1545,7 +1969,7 @@ AS
                                         )
                                         SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									    set @ChangeDescription = null
+									    set @ChangeDescription = ''
 								  end try
 								  begin catch
 								     if xact_state() in (1, -1)
@@ -1610,6 +2034,7 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								        set @ChangeDescription = ''
 
 							            SELECT 
                                               @OldID_Connection_Buyer_2	   = D.ID_Connection_Buyer  ,
@@ -1637,7 +2062,7 @@ AS
                                        )
                                         SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null 
+									   set @ChangeDescription = '' 
 								  end try
 								  begin catch
 								     if xact_state() in (1, -1)
@@ -1695,8 +2120,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							       set @ChangeDescription = ''
+
                                    SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Connection_Buyer = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_Connection_Buyer = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                    
 								   INSERT  INTO dbo.Connection_Buyer_Audit
                                    ( 
@@ -1704,7 +2131,7 @@ AS
                                    )
                                     SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									set @ChangeDescription = null
+									set @ChangeDescription = ''
 
                               end try
 							  begin catch
@@ -1731,6 +2158,674 @@ AS
 GO
 
 
+CREATE TABLE Connection_String_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_Connection_String   bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Employee_Group;
+
+
+go
+
+CREATE TRIGGER trg_Connection_String_Audit ON Connection_String
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max) ='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                           	declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Connection_String,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Connection_String,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+
+                            DECLARE @OldID_Connection_String   bigint        ;
+							DECLARE @OldPassword               nvarchar(50)  ;
+							DECLARE @OldLogin                  nvarchar(100) ;
+							DECLARE @OldDate_Created           datetime      ;
+							DECLARE @OldDescription            nvarchar(1000);
+
+							DECLARE @NewID_Connection_String   bigint        ;
+							DECLARE @NewPassword               nvarchar(50)  ;
+							DECLARE @NewLogin                  nvarchar(100) ;
+							DECLARE @NewDate_Created           datetime      ;
+							DECLARE @NewDescription            nvarchar(1000);
+
+
+						   declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								        set @ChangeDescription = ''
+
+							            SELECT 
+                                               @NewID_Connection_String = I.ID_Connection_String,
+											   @NewPassword             = I.[Password]          ,  
+											   @NewLogin                = I.[Login]             ,  
+											   @NewDate_Created         = I.Date_Created        ,
+											   @NewDescription          = I.[Description]          	
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Connection_String;
+
+                                        SELECT 
+                                               @OldID_Connection_String = D.ID_Connection_String,
+											   @OldPassword             = D.[Password]          ,  
+											   @OldLogin                = D.[Login]             ,  
+											   @OldDate_Created         = D.Date_Created        ,
+											   @OldDescription          = D.[Description]          							
+							            FROM Deleted D
+										where @ID_entity_D = D.ID_Connection_String;
+
+
+							           IF isnull(@NewPassword,'null') <> isnull(@OldPassword,'null') 
+							              begin
+							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Password = Old ->"' +  ISNULL(@OldPassword,'') + ' " NEW -> " ' + isnull(@NewPassword,'') + '", ';
+							              end
+
+							           IF isnull(@NewLogin,'null') <> isnull(@OldLogin,'null') 
+							              begin
+							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Login = Old ->"' +  ISNULL(@OldLogin,'') + ' " NEW -> " ' + isnull(@NewLogin,'') + '", ';
+							              end
+
+							           IF ISNULL(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
+							              begin
+							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
+							              end
+							           
+                                       IF @NewDescription <> @OldDescription
+							              begin
+                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                          end
+
+                                       SET @ChangeDescription = 'Updated: ' + ' ID_Connection_String = "' +  isnull(cast(@OldID_Connection_String as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                        --Удаляем запятую на конце
+                                       IF LEN(@ChangeDescription) > 0
+                                           SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                       
+									   INSERT  INTO dbo.Connection_String_Audit
+                                        ( 
+                                         ID_Connection_String,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                        )
+                                       SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									   set @ChangeDescription = '' 
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+
+  					
+                END
+            ELSE
+                BEGIN
+                            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+                            insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Connection_String,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+							
+                            DECLARE @OldID_Connection_String_2   bigint        ;
+							DECLARE @OldPassword_2               nvarchar(50)  ;
+							DECLARE @OldLogin_2                  nvarchar(100) ;
+							DECLARE @OldDate_Created_2           datetime      ;
+							DECLARE @OldDescription_2            nvarchar(1000);
+
+							declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						         begin
+							         begin try
+									        set @ChangeDescription = ''
+
+                                            SELECT 
+                                                   @OldID_Connection_String_2 = D.ID_Connection_String,
+												   @OldPassword_2             = D.[Password]          , 
+												   @OldLogin_2                = D.[Login]             , 
+												   @OldDate_Created_2         = D.Date_Created        ,
+												   @OldDescription_2          = D.[Description]               
+							                FROM deleted D									 
+											where @ID_entity_D_2 = D.ID_Connection_String;
+
+                                            SET @ChangeDescription = 'Deleted: '
+							                + 'ID_Connection_String' +' = "'+  ISNULL(CAST(@OldID_Connection_String_2 AS NVARCHAR(50)),'') + '", '
+						                    + 'Password'             +' = "'+  ISNULL(@OldPassword_2,'')+ '", '				
+							                + 'Login'                +' = "'+  ISNULL(@OldLogin_2,'')+ '", ' 
+							                + 'Date_Created'         +' = "'+  ISNULL(CAST(Format(@OldDate_Created_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
+							                + 'Description'          +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+						                       SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Connection_String_Audit
+                                           ( 
+                                            ID_Connection_String,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                END  
+        END
+    ELSE
+        BEGIN
+                    declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_Connection_String,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+					DECLARE @ID_entity_I_2    bigint       ;
+				    DECLARE @login_name_2_I_2 nvarchar(128);
+				    DECLARE @ModifiedDate_I_2 DATETIME     ;
+				    DECLARE @Name_action_I_2  char(1)      ;
+
+                    declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						  begin
+							   begin try
+							           set @ChangeDescription = ''
+
+                                       SET @ChangeDescription = 'Inserted: '
+                                         + 'ID_Connection_String = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                                       
+									   INSERT  INTO dbo.Connection_String_Audit
+                                       ( 
+                                        ID_Connection_String,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                       )
+                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									   set @ChangeDescription = ''
+           
+		                       end try
+							   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+                    END
+
+GO
+
+
+CREATE TABLE Country_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    Id_Country             bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+  --  PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Employee_Group;
+
+
+go
+
+CREATE TRIGGER trg_Country_Audit ON Country
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+	
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)= '';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+
+
+							declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Country,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Country,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+
+
+						   DECLARE @OldId_Country         bigint        ;
+						   DECLARE @OldName_Country       nvarchar(150) ;
+						   DECLARE @OldName_English       nvarchar(150) ;
+						   DECLARE @OldCod_Country_Phone  nvarchar(10)  ;
+
+						   DECLARE @NewId_Country         bigint        ;
+						   DECLARE @NewName_Country       nvarchar(150) ;
+						   DECLARE @NewName_English       nvarchar(150) ;
+						   DECLARE @NewCod_Country_Phone  nvarchar(10)  ;
+						   
+						   declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								     set @ChangeDescription = ''
+
+									 SELECT 
+										@NewId_Country       	 = I.Id_Country       ,
+										@NewName_Country     	 = I.Name_Country     ,
+										@NewName_English     	 = I.Name_English     ,
+										@NewCod_Country_Phone    = I.Cod_Country_Phone 
+									 FROM inserted I  
+									 where @ID_entity_D = I.Id_Country;	
+									 
+									 SELECT  
+									     @OldId_Country        =   D.Id_Country       ,
+										 @OldName_Country      =   D.Name_Country     ,
+										 @OldName_English      =   D.Name_English     ,
+										 @OldCod_Country_Phone =   D.Cod_Country_Phone
+									 FROM   Deleted D 
+									 where @ID_entity_D = D.Id_Country 
+				
+														
+                                     
+									 IF isnull(@NewName_Country,'null') <> isnull(@OldName_Country,'null') 
+							            begin
+                                         SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Country = Old ->"' +  ISNULL(@OldName_Country,'') + ' " NEW -> " ' + isnull(@NewName_Country,'') + '", ';
+							            end
+                            
+							        IF isnull(@NewName_English,'null') <> isnull(@OldName_English,'null')
+							           begin
+							             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_English = Old ->"' +  ISNULL(@OldName_English,'') + ' " NEW -> " ' + isnull(@NewName_English,'') + '", ';
+							           end
+
+							        IF isnull(@NewCod_Country_Phone,'null') <> isnull(@OldCod_Country_Phone,'null') 
+							           begin
+							             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Cod_Country_Phone = Old ->"' +  ISNULL(@OldCod_Country_Phone,'') + ' " NEW -> " ' + isnull(@NewCod_Country_Phone,'') + '", ';
+							           end
+                                    
+									SET @ChangeDescription = 'Updated: ' + ' Id_Country = "' +  isnull(cast(@OldId_Country as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'')
+
+									IF LEN(@ChangeDescription) > 0
+                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+
+                                    INSERT  INTO dbo.Country_Audit
+                                     ( 
+                                      Id_Country,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                     )
+                                       SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									set @ChangeDescription = '' 
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+							  					
+                END
+            ELSE
+                BEGIN						  
+							declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Country,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+						   DECLARE @OldId_Country_2         bigint        ;
+						   DECLARE @OldName_Country_2       nvarchar(150) ;
+						   DECLARE @OldName_English_2       nvarchar(150) ;
+						   DECLARE @OldCod_Country_Phone_2  nvarchar(10)  ;
+						   
+						   declare cr_2 cursor local fast_forward for
+						   
+						   select 
+						   ID_entity   
+						   ,login_name  
+						   ,ModifiedDate
+						   ,Name_action 
+						   from @t_D_D 
+                           open cr_2       
+						   
+						   fetch next from cr_2 into 
+						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								     set @ChangeDescription = ''
+
+									 SELECT  
+									     @OldId_Country_2        =   D.Id_Country       ,
+										 @OldName_Country_2      =   D.Name_Country     ,
+										 @OldName_English_2      =   D.Name_English     ,
+										 @OldCod_Country_Phone_2 =   D.Cod_Country_Phone
+									 FROM   Deleted D 
+									 where @ID_entity_D_2 = D.Id_Country 
+					
+					                 SET @ChangeDescription = 'Deleted: '
+							         + 'Id_Country'                +' = "'+  ISNULL(CAST(@OldId_Country_2  AS NVARCHAR(50)),'')+ '", '
+							         + 'Name_Country'              +' = "'+  ISNULL(@OldName_Country_2,'')+ '", '				
+							         + 'Name_English'              +' = "'+  ISNULL(@OldName_English_2,'')+ '", '
+							         + 'Cod_Country_Phone'         +' = "'+  ISNULL(@OldCod_Country_Phone_2,'') + '", '
+
+
+                                     IF LEN(@ChangeDescription) > 0
+						                     SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                    INSERT  INTO dbo.Country_Audit
+                                     ( 
+                                      Id_Country,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                     )
+                                      SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                END  
+        END
+    ELSE
+        BEGIN
+
+				           DECLARE @ID_entity_I_2    bigint       ;
+				           DECLARE @login_name_2_I_2 nvarchar(128);
+				           DECLARE @ModifiedDate_I_2 DATETIME     ;
+				           DECLARE @Name_action_I_2  char(1)      ;
+
+							declare @t_I_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT I.Id_Country,@login_name,GETDATE(),'I'  
+							FROM  inserted I
+						   
+						   declare cr_3 cursor local fast_forward for
+						   
+						   select 
+						   ID_entity   
+						   ,login_name  
+						   ,ModifiedDate
+						   ,Name_action 
+						   from @t_I_I 
+                           open cr_3       
+						   
+						   fetch next from cr_3 into 
+						   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								     set @ChangeDescription = ''				 
+					
+					                 SET @ChangeDescription = 'Inserted: '
+                                         + 'Id_Country = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+  
+                                    INSERT  INTO dbo.Country_Audit
+                                     ( 
+                                      Id_Country,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                     )
+                                      SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+
+                    END
+
+
+GO
+
+
 CREATE TABLE Currency_Audit
 (
     AuditID              bigint IDENTITY(1,1)  not null,
@@ -1740,7 +2835,7 @@ CREATE TABLE Currency_Audit
 	Operation            CHAR(1)               null,
     ChangeDescription    nvarchar(max)         null
 --    PRIMARY KEY CLUSTERED ( AuditID ) 
-)on Orders_Group ;
+)on Orders_Group;
 
 go
 
@@ -1751,7 +2846,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)= '';
 
 
     SELECT  @login_name = login_name
@@ -1828,6 +2923,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 						         begin try
+								 set @ChangeDescription = ''
+
 								 SELECT 
 								     @NewID_Currency       =   ID_Currency     ,
 								 	 @NewFull_name_rus     =   Full_name_rus   ,
@@ -1847,30 +2944,36 @@ AS
 									 @OldDescription       =   [Description]     
 								 FROM   Deleted D 
 								 where @ID_entity_D = D.ID_Currency 
+
+
+
                          
-                            IF @NewFull_name_rus <> @OldFull_name_rus 
+                            IF isnull(@NewFull_name_rus,'null') <> isnull(@OldFull_name_rus,'null') 
 							   begin
                                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Full_name_rus = Old ->"' +  ISNULL(@OldFull_name_rus,'') + ' " NEW -> " ' + isnull(@NewFull_name_rus,'') + '", ';
 							   end
-                            IF @NewFull_name_eng <> @OldFull_name_eng
+
+                            IF isnull(@NewFull_name_eng,'null') <> isnull(@OldFull_name_eng,'null')
 							   begin
                                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Full_name_eng = Old ->"' + ISNULL(@OldFull_name_eng,'') + ' " NEW -> "' + ISNULL(@NewFull_name_eng,'') + '", ';
 							   end
 
-                            IF @NewAbbreviation_rus <> @OldAbbreviation_rus 
+                            IF isnull(@NewAbbreviation_rus,'null') <> isnull(@OldAbbreviation_rus,'null') 
 							   begin
                                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Abbreviation_rus = Old ->"' +  ISNULL(@OldAbbreviation_rus,'') + ' " NEW -> " ' + isnull(@NewAbbreviation_rus,'') + '", ';
 							   end
-                            IF @NewAbbreviation_eng <> @OldAbbreviation_eng
+
+                            IF isnull(@NewAbbreviation_eng,'null') <> isnull(@OldAbbreviation_eng,'null')
 							   begin
                                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Abbreviation_eng = Old ->"' + ISNULL(@OldAbbreviation_eng,'') + ' " NEW -> "' + ISNULL(@NewAbbreviation_eng,'') + '", ';
 							   end
 
-                            IF @NewDescription <> @OldDescription
+                            IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							   begin
                                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                end
-                            SET @ChangeDescription = 'Updated: ' + ' ID_Currency = "' +  isnull(cast(@OldID_Currency as nvarchar(20)),'')+ '" ' + @ChangeDescription
+
+                            SET @ChangeDescription = 'Updated: ' + ' ID_Currency = "' +  isnull(cast(@OldID_Currency as nvarchar(20)),'')+ '" ' + isnull(@ChangeDescription,'')
                              --Удаляем запятую на конце
                             IF LEN(@ChangeDescription) > 0
                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -1881,7 +2984,7 @@ AS
                                      )
                                       SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-							set @ChangeDescription = null 
+							set @ChangeDescription = '' 
                             
 							end try
 								  begin catch
@@ -1948,6 +3051,7 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								         set @ChangeDescription = ''
 
                                          SELECT 
 							                 @OldID_Currency_2        = D.ID_Currency,     
@@ -1961,7 +3065,7 @@ AS
 
 
                                         SET @ChangeDescription = 'Deleted: '
-                                                + 'ID_Currency'      +' = "'+ ISNULL(CAST(@OldID_Currency_2 AS NVARCHAR(20)), '') + '", '
+                                                + 'ID_Currency'      +' = "'+ ISNULL(CAST(@OldID_Currency_2 AS NVARCHAR(50)), '') + '", '
                                                 + 'Full_name_rus'    +' = "'+ ISNULL(@OldFull_name_rus_2, '') + '", '
 							            		+ 'Full_name_eng'    +' = "'+ ISNULL(@OldFull_name_eng_2, '') + '", '
                                                 + 'Abbreviation_rus' +' = "'+ ISNULL(@OldAbbreviation_rus_2, '') + '", '
@@ -1977,7 +3081,7 @@ AS
 									    )
 									     SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;      
 									    
-									   set @ChangeDescription = null
+									   set @ChangeDescription = ''
 									end try
 								  begin catch
 								     if xact_state() in (1, -1)
@@ -2036,10 +3140,10 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-
+								   set @ChangeDescription = ''
 		            
                                    SET @ChangeDescription = 'Inserted: '
-                                              + 'ID_Currency = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                              + 'ID_Currency = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                    
 								   INSERT  INTO dbo.Currency_Audit
                                      ( 
@@ -2047,7 +3151,7 @@ AS
                                      )
                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									set @ChangeDescription = null
+									set @ChangeDescription = ''
 
 								 end try
 								  begin catch
@@ -2073,6 +3177,7 @@ AS
 
 GO
 
+
 CREATE TABLE Currency_Rate_Audit
 (
     AuditID                bigint IDENTITY(1,1)  not null,
@@ -2094,7 +3199,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max) = '';
 
 
     SELECT  @login_name = login_name
@@ -2172,6 +3277,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									        set @ChangeDescription = ''
+
 							                SELECT  
                                                   @NewID_Currency_Rate         =  I.ID_Currency_Rate         ,
 							                	  @NewID_Currency              =  I.ID_Currency              ,
@@ -2195,38 +3302,39 @@ AS
 											where @ID_entity_D = D.ID_Currency_Rate;
 
 
-                                            IF @NewID_Currency <> @OldID_Currency 
+                                            IF ISNULL(cast(@NewID_Currency as nvarchar(50)),'null') <> ISNULL(cast(@OldID_Currency as nvarchar(50)),'null') 
 							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency = Old ->"' +  ISNULL(cast(@OldID_Currency as nvarchar(20)),'') + ' " NEW -> " ' + isnull(cast(@NewID_Currency as nvarchar(20)),'') + '", ';
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency = Old ->"' +  ISNULL(cast(@OldID_Currency as nvarchar(50)),'') + ' " NEW -> " ' + isnull(cast(@NewID_Currency as nvarchar(50)),'') + '", ';
 							                   end
                                             
-							                IF @NewAmount_Rate <> @OldAmount_Rate
+							                IF ISNULL(cast(@NewAmount_Rate as nvarchar(50)),'null') <> ISNULL(cast(@OldAmount_Rate as nvarchar(50)),'null')
 							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Amount_Rate = Old ->"' +  ISNULL(cast(@OldAmount_Rate as nvarchar(20)),'') + ' " NEW -> " ' + isnull(cast(@NewAmount_Rate as nvarchar(20)),'') + '", ';
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Amount_Rate = Old ->"' +  ISNULL(cast(@OldAmount_Rate as nvarchar(50)),'') + ' " NEW -> " ' + isnull(cast(@NewAmount_Rate as nvarchar(50)),'') + '", ';
 							                   end
 							                
 							                   				
-							                IF @NewValid_from <> @OldValid_from
+							                IF ISNULL(CAST(Format(@NewValid_from,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldValid_from,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							                   begin
 							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Valid_from = Old ->"' +  ISNULL(CAST(Format(@OldValid_from,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewValid_from,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							                   end
 							                
 							                						   				
-							                IF @NewValid_to <> @OldValid_to
+							                IF ISNULL(CAST(Format(@NewValid_to,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldValid_to,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							                   begin
 							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Valid_to = Old ->"' +  ISNULL(CAST(Format(@OldValid_to,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewValid_to,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							                   end
 							                
-							                IF @NewJSON_Currency_Rate_Data <> @OldJSON_Currency_Rate_Data
+							                IF ISNULL(CAST(@NewJSON_Currency_Rate_Data AS NVARCHAR(max)),'null') <> ISNULL(CAST(@OldJSON_Currency_Rate_Data AS NVARCHAR(max)),'null')
 							                   begin
 							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  JSON_Currency_Rate_Data = Old ->"' +  ISNULL(CAST(@OldAmount_Rate AS NVARCHAR(max)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmount_Rate AS NVARCHAR(max)),'') + '", ';
 							                   end
 							                
-                                            IF @NewDescription <> @OldDescription
+                                            IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							                   begin
                                                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                                end
-                                            SET @ChangeDescription = 'Updated: ' + ' ID_Currency_Rate = "' +  isnull(cast(@OldID_Currency_Rate as nvarchar(20)),'')+ '" ' + @ChangeDescription
+
+                                            SET @ChangeDescription = 'Updated: ' + ' ID_Currency_Rate = "' +  isnull(cast(@OldID_Currency_Rate as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'')
                                              --Удаляем запятую на конце
                                             IF LEN(@ChangeDescription) > 0
                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -2237,7 +3345,7 @@ AS
                                              )
                                                SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									         set @ChangeDescription = null
+									         set @ChangeDescription = ''
 					              end try
 								  begin catch
 								     if xact_state() in (1, -1)
@@ -2303,6 +3411,7 @@ AS
 						    while @@FETCH_STATUS  = 0
 						          begin
 							          begin try
+									        set @ChangeDescription = ''
 
                                             SELECT
 							                    @OldID_Currency_Rate_2        = D.ID_Currency_Rate       	 ,
@@ -2333,7 +3442,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 
 								  end try
 								  begin catch
@@ -2391,8 +3500,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							    begin try
+								       set @ChangeDescription = ''
+
                                        SET @ChangeDescription = 'Inserted: '
-                                              + 'ID_Currency_Rate = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                              + 'ID_Currency_Rate = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
 
 									   INSERT  INTO dbo.Currency_Rate_Audit
                                         ( 
@@ -2400,7 +3511,7 @@ AS
                                         )
                                          SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									    set @ChangeDescription = null
+									    set @ChangeDescription = ''
                                         
 								end try
 								begin catch
@@ -2448,7 +3559,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max) = '';
 
 
     SELECT  @login_name = login_name
@@ -2529,7 +3640,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						          begin
 							           begin try
-							             SELECT 
+									      set @ChangeDescription = ''
+										  SELECT 
                                                 @NewId_Data_Orders    =  I.Id_Data_Orders  ,
 							             		@NewID_Employee       =  I.ID_Employee     ,
 							             		@NewID_Orders         =  I.ID_Orders       ,
@@ -2552,40 +3664,41 @@ AS
 									           @OldDescription        =  D.[Description]        							
 							             FROM Deleted D	
 										 where @ID_entity_D = D.Id_Data_Orders;
+
 																	 
-                                         IF @NewID_Employee <> @OldID_Employee
+                                         IF ISNULL(CAST(@NewID_Employee AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Employee AS NVARCHAR(50)),'null')
 							                begin
-                                             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Employee = Old ->"' +  ISNULL(CAST(@OldID_Employee AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Employee AS NVARCHAR(20)),'') + '", ';
+                                             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Employee = Old ->"' +  ISNULL(CAST(@OldID_Employee AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Employee AS NVARCHAR(20)),'') + '", ';
 							                end
                                          
-							             IF @NewID_Orders <> @OldID_Orders
+							             IF ISNULL(CAST(@NewID_Orders AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Orders AS NVARCHAR(50)),'null')
 							                begin
-							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Orders = Old ->"' +  ISNULL(CAST(@OldID_Orders AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Orders AS NVARCHAR(20)),'') + '", ';
+							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Orders = Old ->"' +  ISNULL(CAST(@OldID_Orders AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Orders AS NVARCHAR(20)),'') + '", ';
 							                end
-							             IF @NewId_buyer <> @OldId_buyer 
+							             IF ISNULL(CAST(@NewId_buyer AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldId_buyer AS NVARCHAR(50)),'null') 
 							                begin
-							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_buyer = Old ->"' +  ISNULL(cast(@OldId_buyer AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(cast(@NewId_buyer AS NVARCHAR(20)),'') + '", ';
+							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_buyer = Old ->"' +  ISNULL(cast(@OldId_buyer AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(cast(@NewId_buyer AS NVARCHAR(20)),'') + '", ';
 							                end
                                                                                                  
-							             IF @NewID_Exemplar <> @OldID_Exemplar 
+							             IF ISNULL(CAST(@NewID_Exemplar AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Exemplar AS NVARCHAR(50)),'null') 
 							                begin
-							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Exemplar = Old ->"' +  ISNULL(cast(@OldID_Exemplar AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Exemplar AS NVARCHAR(20)),'') + '", ';
+							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Exemplar = Old ->"' +  ISNULL(cast(@OldID_Exemplar AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Exemplar AS NVARCHAR(20)),'') + '", ';
 							                end
-							             IF @NewID_Transaction <> @OldID_Transaction 
+							             IF ISNULL(CAST(@NewID_Transaction AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Transaction AS NVARCHAR(50)),'null') 
 							                begin
-							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Transaction = Old ->"' +  ISNULL(CAST(@OldID_Transaction AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Transaction AS NVARCHAR(20)),'') + '", ';
+							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Transaction = Old ->"' +  ISNULL(CAST(@OldID_Transaction AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Transaction AS NVARCHAR(20)),'') + '", ';
 							                end
 							             
-							             IF @NewDate_Data_Orders <> @OldDate_Data_Orders
+							             IF ISNULL(CAST(Format(@NewDate_Data_Orders,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Data_Orders,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							                begin
 							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Data_Orders = Old ->"' +  ISNULL(CAST(Format(@OldDate_Data_Orders,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Data_Orders,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							                end
 							             
-                                         IF @NewDescription <> @OldDescription
+                                         IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							                begin
                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                             end
-                                         SET @ChangeDescription = 'Updated: ' + ' Id_Data_Orders = "' +  isnull(cast(@OldId_Data_Orders as nvarchar(20)),'')+ '" ' + @ChangeDescription
+                                         SET @ChangeDescription = 'Updated: ' + ' Id_Data_Orders = "' +  isnull(cast(@OldId_Data_Orders as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
                                           --Удаляем запятую на конце
                                          IF LEN(@ChangeDescription) > 0
                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -2596,7 +3709,7 @@ AS
                                          )
                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									     set @ChangeDescription = null  
+									     set @ChangeDescription = '' 
 										 
 
 								end try
@@ -2665,6 +3778,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								            set @ChangeDescription = ''
+
                                             SELECT 
 							                    @OldId_Data_Orders_2  	   = D.Id_Data_Orders    ,
 							                	@OldID_Employee_2     	   = D.ID_Employee       ,
@@ -2678,12 +3793,12 @@ AS
 							                where @ID_entity_D_2 = D.Id_Data_Orders
 
                                             SET @ChangeDescription = 'Deleted: '
-							                + 'Id_Data_Orders'     +' = "'+  ISNULL(CAST(@OldId_Data_Orders_2 AS NVARCHAR(20)),'')     + '", '
-							                + 'ID_Employee'        +' = "'+  ISNULL(CAST(@OldID_Employee_2 AS NVARCHAR(20)),'')     + '", '
-							                + 'ID_Orders'          +' = "'+  ISNULL(CAST(@OldID_Orders_2 AS NVARCHAR(20)),'')     + '", '
-							                + 'Id_buyer'           +' = "'+  ISNULL(CAST(@OldId_buyer_2 AS NVARCHAR(20)),'')     + '", '
-							                + 'ID_Exemplar'        +' = "'+  ISNULL(CAST(@OldID_Exemplar_2 AS NVARCHAR(20)),'')     + '", '
-							                + 'ID_Transaction'     +' = "'+  ISNULL(CAST(@OldID_Transaction_2 AS NVARCHAR(20)),'')     + '", '
+							                + 'Id_Data_Orders'     +' = "'+  ISNULL(CAST(@OldId_Data_Orders_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'ID_Employee'        +' = "'+  ISNULL(CAST(@OldID_Employee_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'ID_Orders'          +' = "'+  ISNULL(CAST(@OldID_Orders_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'Id_buyer'           +' = "'+  ISNULL(CAST(@OldId_buyer_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'ID_Exemplar'        +' = "'+  ISNULL(CAST(@OldID_Exemplar_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'ID_Transaction'     +' = "'+  ISNULL(CAST(@OldID_Transaction_2 AS NVARCHAR(50)),'')     + '", '
 							                + 'Date_Data_Orders'   +' = "'+  ISNULL(CAST(Format(@OldDate_Data_Orders_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
 							                + 'Description'        +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
 
@@ -2696,7 +3811,7 @@ AS
                                             )
                                              SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									        set @ChangeDescription = null 
+									        set @ChangeDescription = '' 
 											
 								  end try
 								  begin catch
@@ -2755,6 +3870,7 @@ AS
 					 while @@FETCH_STATUS  = 0
 						    begin
 							  begin try
+							        set @ChangeDescription = ''
 
                                     SET @ChangeDescription = 'Inserted: '
                                          + 'Id_Data_Orders = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
@@ -2765,7 +3881,7 @@ AS
                                      )
                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									set @ChangeDescription = null              
+									set @ChangeDescription = ''              
                               end try
 							  begin catch
 								     if xact_state() in (1, -1)
@@ -2786,5129 +3902,6 @@ AS
 						   close cr_3
                            deallocate cr_3
                     END
-
-GO
-
-CREATE TABLE Exemplar_Audit
-(
-    AuditID                   bigint IDENTITY(1,1)  not null,
-    ID_Exemplar               bigint                null,
- 	ModifiedBy                nVARCHAR(128)         null,
-    ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation                 CHAR(1)               null,
-    ChangeDescription         nvarchar(max)         null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_Exemplar_Audit ON Exemplar
-AFTER INSERT, UPDATE, DELETE
-
-AS  
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                         	declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Exemplar,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Exemplar,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                           
-                           DECLARE @OldID_Exemplar                bigint         ;
-						   DECLARE @OldId_Item                    bigint         ;
-						   DECLARE @OldID_Currency                bigint         ;
-						   DECLARE @OldID_Storage_location        bigint         ;
-						   DECLARE @OldKeySource                  bigint         ;
-						   DECLARE @OldSerial_number              nvarchar(500)  ;
-						   DECLARE @OldID_Condition_of_the_item   bigint         ;
-						   DECLARE @OldOld_Price_no_NDS           float          ;
-						   DECLARE @OldRefund                     bit            ;
-						   DECLARE @OldDate_Refund                datetime       ;
-						   DECLARE @OldReturn_Note                nvarchar(4000) ;
-						   DECLARE @OldOld_Price_NDS              float          ;
-						   DECLARE @OldJSON_Size_Volume           nvarchar(max)  ;
-						   DECLARE @OldNew_Price_NDS              float          ;
-						   DECLARE @OldNew_Price_no_NDS           float          ;
-						   DECLARE @OldDate_Created               datetime       ;
-						   DECLARE @OldDescription                nvarchar(4000) ;
-
-						   DECLARE @NewID_Exemplar                bigint         ;
-						   DECLARE @NewId_Item                    bigint         ;
-						   DECLARE @NewID_Currency                bigint         ;
-						   DECLARE @NewID_Storage_location        bigint         ;
-						   DECLARE @NewKeySource                  bigint         ;
-						   DECLARE @NewSerial_number              nvarchar(500)  ;
-						   DECLARE @NewID_Condition_of_the_item   bigint         ;
-						   DECLARE @NewOld_Price_no_NDS           float          ;
-						   DECLARE @NewRefund                     bit            ;
-						   DECLARE @NewDate_Refund                datetime       ;
-						   DECLARE @NewReturn_Note                nvarchar(4000) ;
-						   DECLARE @NewOld_Price_NDS              float          ;
-						   DECLARE @NewJSON_Size_Volume           nvarchar(max)  ;
-						   DECLARE @NewNew_Price_NDS              float          ;
-						   DECLARE @NewNew_Price_no_NDS           float          ;
-						   DECLARE @NewDate_Created               datetime       ;
-						   DECLARE @NewDescription                nvarchar(4000) ;
-
-						   declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-							            SELECT 
-							                @NewID_Exemplar             	= I.ID_Exemplar             , 
-							            	@NewId_Item                 	= I.Id_Item                 ,
-							            	@NewID_Currency             	= I.ID_Currency             ,
-							            	@NewID_Storage_location     	= I.ID_Storage_location     ,
-							            	@NewKeySource               	= I.KeySource               ,
-							            	@NewSerial_number           	= I.Serial_number           ,
-							            	@NewID_Condition_of_the_item	= I.ID_Condition_of_the_item,
-							            	@NewOld_Price_no_NDS        	= I.Old_Price_no_NDS        ,
-							            	@NewRefund                  	= I.Refund                  ,
-							            	@NewDate_Refund             	= I.Date_Refund             ,
-							            	@NewReturn_Note             	= I.Return_Note             ,
-							            	@NewOld_Price_NDS           	= I.Old_Price_NDS           ,
-							            	@NewJSON_Size_Volume        	= I.JSON_Size_Volume        ,
-							            	@NewNew_Price_NDS           	= I.New_Price_NDS           ,
-							            	@NewNew_Price_no_NDS        	= I.New_Price_no_NDS        ,
-							            	@NewDate_Created                = I.Date_Created            ,
-							            	@NewDescription                 = I.[Description]        	  
-							            FROM inserted I
-										where @ID_entity_D = I.ID_Exemplar;	
-
-								        SELECT 
-							                @OldID_Exemplar             	= D.ID_Exemplar             ,
-							            	@OldId_Item                 	= D.Id_Item                 ,
-							            	@OldID_Currency             	= D.ID_Currency             ,
-							            	@OldID_Storage_location     	= D.ID_Storage_location     ,
-							            	@OldKeySource               	= D.KeySource               ,
-							            	@OldSerial_number           	= D.Serial_number           ,
-							            	@OldID_Condition_of_the_item	= D.ID_Condition_of_the_item,
-							            	@OldOld_Price_no_NDS        	= D.Old_Price_no_NDS        ,
-							            	@OldRefund                  	= D.Refund                  ,
-							            	@OldDate_Refund             	= D.Date_Refund             ,
-							            	@OldReturn_Note             	= D.Return_Note             ,
-							            	@OldOld_Price_NDS           	= D.Old_Price_NDS           ,
-							            	@OldJSON_Size_Volume        	= D.JSON_Size_Volume        ,
-							            	@OldNew_Price_NDS           	= D.New_Price_NDS           ,
-							            	@OldNew_Price_no_NDS        	= D.New_Price_no_NDS        ,
-							            	@OldDate_Created                = D.Date_Created            , 
-							            	@OldDescription                 = D.[Description]        	  					
-							            FROM Deleted D																		 
-										where @ID_entity_D = D.ID_Exemplar;								      
-
-
-                                          IF @NewId_Item  <> @OldId_Item  
-							                 begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Item  = Old ->"' +  ISNULL(CAST(@OldId_Item  AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewId_Item  AS NVARCHAR(20)),'') + '", ';
-							                 end
-                                          
-							              IF @NewID_Currency <> @OldID_Currency
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency = Old ->"' +  ISNULL(CAST(@OldID_Currency AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Currency AS NVARCHAR(20)),'') + '", ';
-							                 end
-							              
-							              IF @NewID_Storage_location <> @OldID_Storage_location
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Storage_location = Old ->"' +  ISNULL(CAST(@OldID_Storage_location AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Storage_location AS NVARCHAR(20)),'') + '", ';
-							                 end                  
-							              
-							              IF @NewKeySource <> @OldKeySource
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  KeySource = Old ->"' +  ISNULL(CAST(@OldKeySource AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewKeySource AS NVARCHAR(20)),'') + '", ';
-							                 end
-							              
-							              IF @NewSerial_number <> @OldSerial_number
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Serial_number = Old ->"' +  ISNULL(@OldSerial_number,'') + ' " NEW -> "' + isnull(@NewSerial_number,'') + '", ';
-							                 end
-							              
-							              IF @NewID_Condition_of_the_item <> @OldID_Condition_of_the_item
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Condition_of_the_item = Old ->"' +  ISNULL(CAST(@OldID_Condition_of_the_item AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Condition_of_the_item AS NVARCHAR(20)),'') + '", ';
-							                 end
-							              
-							              IF @NewOld_Price_no_NDS <> @OldOld_Price_no_NDS
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Old_Price_no_NDS = Old ->"' +  ISNULL(CAST(@OldOld_Price_no_NDS AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewOld_Price_no_NDS AS NVARCHAR(50)),'') + '", ';
-							                 end
-							              
-                                          IF @NewRefund <> @OldRefund
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Refund = Old ->"' +  ISNULL(CAST(@OldRefund AS NVARCHAR(1)),'') + ' " NEW -> "' + isnull(CAST(@NewRefund AS NVARCHAR(1)),'') + '", ';
-							                 end
-							              
-                                          IF @NewDate_Refund <> @OldDate_Refund
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Refund = Old ->"' +  ISNULL(CAST(Format(@OldDate_Refund,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Refund,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
-							                 end
-                                          -----
-							              IF @NewReturn_Note <> @OldReturn_Note
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Return_Note = Old ->"' +  ISNULL(@OldReturn_Note,'') + ' " NEW -> "' + isnull(@NewReturn_Note,'') + '", ';
-							                 end
-                                          
-							              IF @NewOld_Price_NDS <> @OldOld_Price_NDS
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Old_Price_NDS = Old ->"' +  ISNULL(CAST(@OldOld_Price_NDS AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewOld_Price_NDS AS NVARCHAR(50)),'') + '", ';
-							                 end
-							              
-							              IF @NewJSON_Size_Volume <> @OldJSON_Size_Volume
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  JSON_Size_Volume = Old ->"' +  ISNULL(CAST(@OldJSON_Size_Volume AS NVARCHAR(max)),'') + ' " NEW -> "' + isnull(CAST(@NewJSON_Size_Volume AS NVARCHAR(max)),'') + '", ';
-							                 end
-                                          
-							              IF @NewNew_Price_NDS <> @OldNew_Price_NDS
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  New_Price_NDS = Old ->"' +  ISNULL(CAST(@OldNew_Price_NDS AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewNew_Price_NDS AS NVARCHAR(50)),'') + '", ';
-							                 end
-							              
-							              IF @NewNew_Price_no_NDS <> @OldNew_Price_no_NDS
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  New_Price_no_NDS = Old ->"' +  ISNULL(CAST(@OldNew_Price_no_NDS AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewNew_Price_no_NDS AS NVARCHAR(50)),'') + '", ';
-							                 end
-                                          
-							              IF @NewDate_Created <> @OldDate_Created
-							                 begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
-							                 end
-							              
-                                          IF @NewDescription <> @OldDescription
-							                 begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> "' + ISNULL(@NewDescription,'') + '",';
-                                             end
-                                          SET @ChangeDescription = 'Updated: ' + ' ID_Exemplar = "' +  isnull(cast(@OldID_Exemplar as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                           --Удаляем запятую на конце
-                                          IF LEN(@ChangeDescription) > 0
-                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                                          INSERT  INTO dbo.Exemplar_Audit
-                                          ( 
-                                           ID_Exemplar,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                          )
-                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									      set @ChangeDescription = null 
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-                                   					
-                END
-            ELSE
-                BEGIN
-                            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Exemplar,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-		                   DECLARE @OldID_Exemplar_2                bigint         ;
-						   DECLARE @OldId_Item_2                    bigint         ;
-						   DECLARE @OldID_Currency_2                bigint         ;
-						   DECLARE @OldID_Storage_location_2        bigint         ;
-						   DECLARE @OldKeySource_2                  bigint         ;
-						   DECLARE @OldSerial_number_2              nvarchar(500)  ;
-						   DECLARE @OldID_Condition_of_the_item_2   bigint         ;
-						   DECLARE @OldOld_Price_no_NDS_2           float          ;
-						   DECLARE @OldRefund_2                     bit            ;
-						   DECLARE @OldDate_Refund_2                datetime       ;
-						   DECLARE @OldReturn_Note_2                nvarchar(4000) ;
-						   DECLARE @OldOld_Price_NDS_2              float          ;
-						   DECLARE @OldJSON_Size_Volume_2           nvarchar(max)  ;
-						   DECLARE @OldNew_Price_NDS_2              float          ;
-						   DECLARE @OldNew_Price_no_NDS_2           float          ;
-						   DECLARE @OldDate_Created_2               datetime       ;
-						   DECLARE @OldDescription_2                nvarchar(4000) ;    	  	
-
-						   declare cr_2 cursor local fast_forward for
-						   
-						   select 
-						   ID_entity   
-						   ,login_name  
-						   ,ModifiedDate
-						   ,Name_action 
-						   from @t_D_D 
-                           open cr_2       
-						   
-						   fetch next from cr_2 into 
-						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						   while @@FETCH_STATUS  = 0
-						        begin
-							        begin try
-                                            SELECT 
-							                    @OldID_Exemplar_2             	  = D.ID_Exemplar              ,
-							                	@OldId_Item_2                 	  = D.Id_Item                  ,
-							                	@OldID_Currency_2             	  = D.ID_Currency              ,
-							                	@OldID_Storage_location_2     	  = D.ID_Storage_location      ,
-							                	@OldKeySource_2               	  = D.KeySource                ,
-							                	@OldSerial_number_2           	  = D.Serial_number            ,
-							                	@OldID_Condition_of_the_item_2	  = D.ID_Condition_of_the_item ,
-							                	@OldOld_Price_no_NDS_2        	  = D.Old_Price_no_NDS         ,
-							                	@OldRefund_2                  	  = D.Refund                   ,
-							                	@OldDate_Refund_2             	  = D.Date_Refund              ,
-							                	@OldReturn_Note_2             	  = D.Return_Note              ,
-							                	@OldOld_Price_NDS_2           	  = D.Old_Price_NDS            ,
-							                	@OldJSON_Size_Volume_2        	  = D.JSON_Size_Volume         ,
-							                	@OldNew_Price_NDS_2           	  = D.New_Price_NDS            ,
-							                	@OldNew_Price_no_NDS_2        	  = D.New_Price_no_NDS         ,
-							                	@OldDate_Created_2                = D.Date_Created             ,
-							                	@OldDescription_2                 = D.[Description]        
-							                FROM deleted D	
-											where @ID_entity_D_2 = D.ID_Exemplar
-
-                                            SET @ChangeDescription = 'Deleted: '
-							                + 'ID_Exemplar'             +' = "'+  ISNULL(CAST(@OldID_Exemplar_2     AS NVARCHAR(20)),'')+ '", '
-							                + 'Id_Item'                 +' = "'+  ISNULL(CAST(@OldId_Item_2  AS NVARCHAR(20)),'')+ '", '
-							                + 'ID_Currency'             +' = "'+  ISNULL(CAST(@OldID_Currency_2 AS NVARCHAR(20)),'') + '", '
-							                + 'ID_Storage_location'     +' = "'+  ISNULL(CAST(@OldID_Storage_location_2 AS NVARCHAR(20)),'') + '", '
-							                + 'KeySource'               +' = "'+  ISNULL(CAST(@OldKeySource_2 AS NVARCHAR(50)),'')+ '", '				
-							                + 'Serial_number'           +' = "'+  ISNULL(@OldSerial_number_2,'')+ '", '
-							                + 'ID_Condition_of_the_item'+' = "'+  ISNULL(CAST(@OldID_Condition_of_the_item_2 AS NVARCHAR(20)),'') + '", '
-							                + 'Old_Price_no_NDS'        +' = "'+  ISNULL(CAST(@OldOld_Price_no_NDS_2 AS NVARCHAR(50)),'')+ '", '
-							                + 'Refund'                  +' = "'+  ISNULL(CAST(@OldRefund_2 AS NVARCHAR(1)),'') + '", '
-							                + 'Date_Refund'             +' = "'+  ISNULL(CAST(Format(@OldDate_Refund_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
-							                + 'Return_Note'             +' = "'+  ISNULL(@OldReturn_Note_2,'')+ '", '
-							                + 'Old_Price_NDS'           +' = "'+  ISNULL(CAST(@OldOld_Price_NDS_2 AS NVARCHAR(50)),'') + '", '
-							                + 'JSON_Size_Volume'        +' = "'+  ISNULL(CAST(@OldJSON_Size_Volume_2 AS NVARCHAR(MAX)),'') + '", '
-							                + 'New_Price_NDS'           +' = "'+  ISNULL(CAST(@OldNew_Price_NDS_2 AS NVARCHAR(50)),'') + '", '
-							                + 'New_Price_no_NDS'        +' = "'+  ISNULL(CAST(@OldNew_Price_no_NDS_2 AS NVARCHAR(50)),'') + '", '
-							                + 'Date_Created'            +' = "'+  ISNULL(CAST(Format(@OldDate_Created_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
-            				                + 'Description'             +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
-
-							               IF LEN(@ChangeDescription) > 0
-                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                           INSERT  INTO dbo.Exemplar_Audit
-                                           ( 
-                                            ID_Exemplar,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									       set @ChangeDescription = null     
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                 END
-        END
-    ELSE
-        BEGIN
-                   DECLARE @ID_entity_I_2    bigint       ;
-				   DECLARE @login_name_2_I_2 nvarchar(128);
-				   DECLARE @ModifiedDate_I_2 DATETIME     ;
-				   DECLARE @Name_action_I_2  char(1)      ;
-
-				   declare @t_I_I table 
-				   (
-				   Id_Num         bigint        identity(1,1) not null,
-				   ID_entity      bigint        null,
-				   login_name     nvarchar(128) null,
-				   ModifiedDate   DATETIME      null,
-				   Name_action    char(1)       null
-				   );
-
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_Exemplar,@login_name,GETDATE(),'I'  
-					FROM  inserted I  
-
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						   begin
-							      begin try
-                                        SET @ChangeDescription = 'Inserted: '
-                                               + 'ID_Exemplar = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                        
-										 INSERT  INTO dbo.Exemplar_Audit
-                                         ( 
-                                          ID_Exemplar,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                         )
-                                          SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									     set @ChangeDescription = null
-                                  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3               
-
-                    END
-
-GO
-
-CREATE TABLE Item_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    Id_Item                bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(Max)         null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-
-CREATE TRIGGER trg_Item_Audit ON Item
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                           declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Item,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Item,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                           
-                           DECLARE @OldId_Item                     bigint         	;
-						   DECLARE @OldID_product_measurement      bigint         	;
-						   DECLARE @OldID_TypeItem                 bigint         	;
-						   DECLARE @OldID_Species_Item             bigint           ;
-						   DECLARE @OldId_Item_Status              bigint           ;
-						   DECLARE @OldArticle_number              nvarchar(300)  	;
-						   DECLARE @OldName_Item                   nvarchar(500)  	;
-						   DECLARE @OldImage_Item                  varbinary(max) 	;
-						   DECLARE @OldManufacturer                nvarchar(500)  	;
-						   DECLARE @OldCountry                     nvarchar(200)  	;
-						   DECLARE @OldCity                        nvarchar(200)  	;
-						   DECLARE @OldAdress                      nvarchar(800)  	;
-						   DECLARE @OldMail                        nvarchar(250)  	;
-						   DECLARE @OldPhone                       nvarchar(30)   	;
-						   DECLARE @OldLogo                        varbinary(max) 	;
-						   DECLARE @OldDate_Created                datetime       	;
-						   DECLARE @OldQuantity                    int              ;
-	                       DECLARE @OldDescription                 nvarchar(4000)	;
-
-                           DECLARE @NewId_Item                     bigint         	;
-						   DECLARE @NewID_product_measurement      bigint         	;
-						   DECLARE @NewID_TypeItem                 bigint         	;
-						   DECLARE @NewID_Species_Item             bigint           ;
-						   DECLARE @NewId_Item_Status              bigint           ;
-						   DECLARE @NewArticle_number              nvarchar(300)  	;
-						   DECLARE @NewName_Item                   nvarchar(500)  	;
-						   DECLARE @NewImage_Item                  varbinary(max) 	;
-						   DECLARE @NewManufacturer                nvarchar(500)  	;
-						   DECLARE @NewCountry                     nvarchar(200)  	;
-						   DECLARE @NewCity                        nvarchar(200)  	;
-						   DECLARE @NewAdress                      nvarchar(800)  	;
-						   DECLARE @NewMail                        nvarchar(250)  	;
-						   DECLARE @NewPhone                       nvarchar(30)   	;
-						   DECLARE @NewLogo                        varbinary(max) 	;
-						   DECLARE @NewDate_Created                datetime       	;
-						   DECLARE @NewQuantity                    int              ;
-						   DECLARE @NewDescription                 nvarchar(4000)	;
-						   
-						   declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						         begin
-							          begin try
-						   
-                         
-							                SELECT  
-							                        @NewId_Item                    =  I.Id_Item                ,
-							                		@NewID_product_measurement	   =  I.ID_product_measurement ,
-							                		@NewID_TypeItem           	   =  I.ID_TypeItem            ,
-													@NewID_Species_Item			   =  I.ID_Species_Item        ,
-													@NewId_Item_Status             =  I.Id_Item_Status 		   ,
-							                		@NewArticle_number        	   =  I.Article_number         ,
-							                		@NewName_Item             	   =  I.Name_Item              ,
-							                		@NewImage_Item            	   =  I.Image_Item             ,
-							                		@NewManufacturer          	   =  I.Manufacturer           ,
-							                		@NewCountry               	   =  I.Country                ,
-							                		@NewCity                  	   =  I.City                   ,
-							                		@NewAdress                	   =  I.Adress                 ,
-							                		@NewMail                  	   =  I.Mail                   ,
-							                		@NewPhone                 	   =  I.Phone                  ,
-							                		@NewLogo                  	   =  I.Logo                   ,
-							                		@NewDate_Created          	   =  I.Date_Created           ,
-							                		@NewQuantity                   =  I.Quantity               ,
-							                		@NewDescription                =  I.[Description]         	
-							                FROM inserted I									 
-											where @ID_entity_D = I.Id_Item;
-							
-							                SELECT 
-							                        @OldId_Item                    =  D.Id_Item                ,
-							                		@OldID_product_measurement	   =  D.ID_product_measurement ,
-							                		@OldID_TypeItem           	   =  D.ID_TypeItem            ,
-													@OldID_Species_Item			   =  D.ID_Species_Item        ,
-													@OldId_Item_Status             =  D.Id_Item_Status 		   ,
-							                		@OldArticle_number        	   =  D.Article_number         ,
-							                		@OldName_Item             	   =  D.Name_Item              ,
-							                		@OldImage_Item            	   =  D.Image_Item             ,
-							                		@OldManufacturer          	   =  D.Manufacturer           ,
-							                		@OldCountry               	   =  D.Country                ,
-							                		@OldCity                  	   =  D.City                   ,
-							                		@OldAdress                	   =  D.Adress                 ,
-							                		@OldMail                  	   =  D.Mail                   ,
-							                		@OldPhone                 	   =  D.Phone                  ,
-							                		@OldLogo                  	   =  D.Logo                   ,
-							                		@OldDate_Created          	   =  D.Date_Created           ,
-							                		@OldQuantity                   =  D.Quantity               ,
-							                		@OldDescription                =  D.[Description]         								
-							                FROM Deleted D
-											where @ID_entity_D = D.Id_Item;
-
-                                            IF @NewID_product_measurement <> @OldID_product_measurement
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_product_measurement = Old ->"' +  ISNULL(CAST(@OldID_product_measurement AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_product_measurement AS NVARCHAR(20)),'') + '", ';
-							                   end
-                                            
-							                IF @NewID_TypeItem <> @OldID_TypeItem
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_TypeItem = Old ->"' +  ISNULL(CAST(@OldID_TypeItem AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_TypeItem AS NVARCHAR(20)),'') + '", ';
-							                   end
-
-                                            IF @NewID_Species_Item <> @OldID_Species_Item
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Species_Item = Old ->"' +  ISNULL(CAST(@OldID_Species_Item AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Species_Item AS NVARCHAR(20)),'') + '", ';
-							                   end
-
-											IF @NewId_Item_Status <> @OldId_Item_Status
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Item_Status = Old ->"' +  ISNULL(CAST(@OldId_Item_Status AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewId_Item_Status AS NVARCHAR(20)),'') + '", ';
-							                   end
-					                        
-							                IF @NewArticle_number <> @OldArticle_number
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Article_number = Old ->"' +  ISNULL(@OldArticle_number,'') + ' " NEW -> " ' + isnull(@NewArticle_number,'') + '", ';
-							                   end
-					                        
-							                IF @NewName_Item <> @OldName_Item
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Item = Old ->"' +  ISNULL(@OldName_Item,'') + ' " NEW -> " ' + isnull(@NewName_Item,'') + '", ';
-							                   end
-					                        
-							                IF @NewImage_Item <> @OldImage_Item
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Image_Item = '  +  '"Изображение было изменено или удалено", ';
-							                   end
-					                        
-							                IF @NewManufacturer <> @OldManufacturer
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Manufacturer = Old ->"' +  ISNULL(@OldManufacturer,'') + ' " NEW -> " ' + isnull(@NewManufacturer,'') + '", ';
-							                   end
-					                        
-							                IF @NewCountry <> @OldCountry
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Country = Old ->"' +  ISNULL(@OldCountry,'') + ' " NEW -> " ' + isnull(@NewCountry,'') + '", ';
-							                   end
-					                        
-							                IF @NewCity <> @OldCity
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  City = Old ->"' +  ISNULL(@OldCity,'') + ' " NEW -> " ' + isnull(@NewCity,'') + '", ';
-							                   end
-					                        
-							                IF @NewAdress <> @OldAdress
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Adress = Old ->"' +  ISNULL(@OldAdress,'') + ' " NEW -> " ' + isnull(@NewAdress,'') + '", ';
-							                   end
-					                        
-							                IF @NewMail <> @OldMail
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Mail = Old ->"' +  ISNULL(@OldMail,'') + ' " NEW -> " ' + isnull(@NewMail,'') + '", ';
-							                   end
-					                        
-							                IF @NewPhone <> @OldPhone
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Phone = Old ->"' +  ISNULL(@OldPhone,'') + ' " NEW -> " ' + isnull(@NewPhone,'') + '", ';
-							                   end
-					                        
-							                IF @NewLogo <> @OldLogo
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Logo = ' +  '"Изображение было изменено или удалено", ';
-							                   end
-							                
-							                IF @NewDate_Created <> @OldDate_Created
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
-							                   end
-							                
-					                        IF @NewQuantity <> @OldQuantity
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Quantity = Old ->"' +  ISNULL(CAST(@OldQuantity AS NVARCHAR(20)),'') + ' " NEW -> " ' + isnull(CAST(@NewQuantity AS NVARCHAR(20)),'') + '", ';
-							                   end
-                                            
-							                
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            SET @ChangeDescription = 'Updated: ' + ' Id_Item = "' +  isnull(cast(@OldId_Item as nvarchar(20)),'')+ '" ' + @ChangeDescription + '"'
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                                             INSERT  INTO dbo.Item_Audit
-                                             ( 
-                                              Id_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                             )
-                                               SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                             
-									         set @ChangeDescription = null 
- 					              end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-                END
-            ELSE
-                BEGIN
-                            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Item,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ; 
-
-						   DECLARE @OldId_Item_2                       bigint         ;
-						   DECLARE @OldID_product_measurement_2        bigint         ;
-						   DECLARE @OldID_TypeItem_2                   bigint         ;
-						   DECLARE @OldID_Species_Item_2               bigint         ;
-						   DECLARE @OldId_Item_Status_2                bigint         ;
-						   DECLARE @OldArticle_number_2                nvarchar(300)  ;
-						   DECLARE @OldName_Item_2                     nvarchar(500)  ;
-						   DECLARE @OldImage_Item_2                    varbinary(max) ;
-						   DECLARE @OldManufacturer_2                  nvarchar(500)  ;
-						   DECLARE @OldCountry_2                       nvarchar(200)  ;
-						   DECLARE @OldCity_2                          nvarchar(200)  ;
-						   DECLARE @OldAdress_2                        nvarchar(800)  ;
-						   DECLARE @OldMail_2                          nvarchar(250)  ;
-						   DECLARE @OldPhone_2                         nvarchar(30)   ;
-						   DECLARE @OldLogo_2                          varbinary(max) ;
-						   DECLARE @OldDate_Created_2                  datetime       ;
-						   DECLARE @OldQuantity_2                      int            ;
-	                       DECLARE @OldDescription_2                   nvarchar(4000) ;
-
-
-						   declare cr_2 cursor local fast_forward for
-						   
-						   select 
-						   ID_entity   
-						   ,login_name  
-						   ,ModifiedDate
-						   ,Name_action 
-						   from @t_D_D 
-                           open cr_2       
-						   
-						   fetch next from cr_2 into 
-						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						   while @@FETCH_STATUS  = 0
-						        begin
-							         begin try
-                                                SELECT 
-                                                    @OldId_Item_2                   = D.Id_Item               ,
-							                    	@OldID_product_measurement_2    = D.ID_product_measurement,
-							                    	@OldID_TypeItem_2               = D.ID_TypeItem           ,
-													@OldID_Species_Item_2			= D.ID_Species_Item       ,
-													@OldId_Item_Status_2            = D.Id_Item_Status 		  ,
-							                    	@OldArticle_number_2            = D.Article_number        ,
-							                    	@OldName_Item_2                 = D.Name_Item             ,
-							                    	@OldImage_Item_2                = D.Image_Item            ,
-							                    	@OldManufacturer_2              = D.Manufacturer          ,
-							                    	@OldCountry_2                   = D.Country               ,
-							                    	@OldCity_2                      = D.City                  ,
-							                    	@OldAdress_2                    = D.Adress                ,
-							                    	@OldMail_2                      = D.Mail                  ,
-							                    	@OldPhone_2                     = D.Phone                 ,
-							                    	@OldLogo_2                      = D.Logo                  ,
-							                    	@OldDate_Created_2              = D.Date_Created          ,
-							                    	@OldQuantity_2                  = D.Quantity              ,        
-							                    	@OldDescription_2               = D.[Description]        
-							                    FROM deleted D
-												where @ID_entity_D_2 = D.Id_Item;
-
-                                                SET @ChangeDescription = 'Deleted: '
-							                    + 'Id_Item'                +' = "'+  ISNULL(CAST(@OldId_Item_2 AS NVARCHAR(20)),'')+ '", '
-							                    + 'ID_product_measurement' +' = "'+  ISNULL(CAST(@OldID_product_measurement_2 AS NVARCHAR(20)),'')+ '", '
-							                    + 'ID_TypeItem'            +' = "'+  ISNULL(CAST(@OldID_TypeItem_2 AS NVARCHAR(20)),'')+ '", '
-                                                + 'ID_Species_Item'        +' = "'+  ISNULL(CAST(@OldID_Species_Item_2 AS NVARCHAR(20)),'')+ '", '
-												+ 'Id_Item_Status'         +' = "'+  ISNULL(CAST(@OldId_Item_Status_2 AS NVARCHAR(20)),'')+ '", '
-							                    + 'Article_number'         +' = "'+  ISNULL(@OldArticle_number_2,'')+ '", '
-							                    + 'Name_Item'              +' = "'+  ISNULL(@OldName_Item_2,'')+ '", '
-							                    + 'Image_Item'             +' = "'+  ISNULL(cast(@OldImage_Item_2 as varchar(max)),'')+ '", '
-							                    + 'Manufacturer'           +' = "'+  ISNULL(@OldManufacturer_2,'')+ '", '
-							                    + 'Country'                +' = "'+  ISNULL(@OldCountry_2,'')+ '", '
-							                    + 'City'                   +' = "'+  ISNULL(@OldCity_2,'')+ '", '
-							                    + 'Adress'                 +' = "'+  ISNULL(@OldAdress_2,'')+ '", '
-							                    + 'Mail'                   +' = "'+  ISNULL(@OldMail_2,'')+ '", '
-							                    + 'Phone'                  +' = "'+  ISNULL(@OldPhone_2,'')+ '", '
-							                    + 'Logo'                   +' = "'+  ISNULL(cast(@OldLogo_2 as varchar(max)),'')+ '", '
-							                    + 'Date_Created'           +' = "'+  ISNULL(CAST(Format(@OldDate_Created_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'')+ '", '
-							                    + 'Quantity'               +' = "'+  ISNULL(CAST(@OldQuantity_2 AS NVARCHAR(20)),'')+ '", '
-							                    + 'Description'            +' = "'+  ISNULL(@OldDescription_2  ,'')+ '"'
-
-                                                IF LEN(@ChangeDescription) > 0
-                                                      SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                                
-												INSERT  INTO dbo.Item_Audit
-                                                ( 
-                                                 Id_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                                )
-                                                 SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									             set @ChangeDescription = null
-                                 end try
-								 begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2                        
-                END  
-        END
-    ELSE
-        BEGIN
-		            declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.Id_Item,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-					DECLARE @ID_entity_I_2    bigint       ;
-				    DECLARE @login_name_2_I_2 nvarchar(128);
-				    DECLARE @ModifiedDate_I_2 DATETIME     ;
-				    DECLARE @Name_action_I_2  char(1)      ;
-
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						   begin
-							      begin try
-		            
-                                         SET @ChangeDescription = 'Inserted: '
-                                                    + 'Id_Item = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                         INSERT  INTO dbo.Item_Audit
-                                         ( 
-                                          Id_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                         )
-                                          SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									     set @ChangeDescription = null    
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-
-                    END
-
-GO
-
-
-CREATE TABLE Orders_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_Orders              bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)        null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Orders_Group;
-
-
-go
-
-CREATE TRIGGER trg_Orders_Audit ON Orders
-AFTER INSERT, UPDATE, DELETE
-
-AS  
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                            declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-                   
-                            insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Orders,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Orders,@login_name,GETDATE(),'U'  
-							FROM  inserted D
-                            
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-	                       
-						   DECLARE @OldID_Orders          bigint                ;
-						   DECLARE @OldID_status          bigint        		;
-						   DECLARE @OldID_TypeOrders      bigint        		;
-						   DECLARE @OldID_Currency        bigint        		;
-						   DECLARE @OldID_OrderAssignment bigint        		;
-						   DECLARE @OldID_OrderCategory	  bigint        		;
-						   DECLARE @OldDate               datetime      		;
-						   DECLARE @OldPayment_Date       datetime      		;
-						   DECLARE @OldAmount             float         		;
-						   DECLARE @OldAmountCurr         float         		;
-						   DECLARE @OldAmountNDS          float         		;
-						   DECLARE @OldAmountCurrNDS      float         		;
-						   DECLARE @OldNum                nvarchar(50)  		;
-						   DECLARE @OldDescription        nvarchar(4000)		;
-
-
-						   DECLARE @NewID_Orders           bigint               ;
-						   DECLARE @NewID_status           bigint        		;
-						   DECLARE @NewID_TypeOrders       bigint        		;
-						   DECLARE @NewID_Currency         bigint        		;
-						   DECLARE @NewID_OrderAssignment  bigint        		;
-						   DECLARE @NewID_OrderCategory	   bigint        		;
-						   DECLARE @NewDate                datetime      		;
-						   DECLARE @NewPayment_Date        datetime      		;
-						   DECLARE @NewAmount              float         		;
-						   DECLARE @NewAmountCurr          float         		;
-						   DECLARE @NewAmountNDS           float         		;
-						   DECLARE @NewAmountCurrNDS       float         		;
-						   DECLARE @NewNum                 nvarchar(50)  		;
-						   DECLARE @NewDescription         nvarchar(4000)		;
-						
-                           declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-										SELECT 
-                                               @NewID_Orders           =  I.ID_Orders         ,
-							            	   @NewID_status           =  I.ID_status    	  ,
-							            	   @NewID_TypeOrders       =  I.ID_TypeOrders	  ,
-							            	   @NewID_Currency         =  I.ID_Currency  	  ,
-											   @NewID_OrderAssignment  =  I.ID_OrderAssignment,
-											   @NewID_OrderCategory	   =  I.ID_OrderCategory  ,
-							            	   @NewDate                =  I.Date              ,         --convert(datetime,Date,109),     
-							            	   @NewPayment_Date        =  I.Payment_Date      ,         --convert(datetime,Payment_Date,109),
-							            	   @NewAmount              =  I.Amount       	  ,
-							            	   @NewAmountCurr          =  I.AmountCurr   	  ,
-							            	   @NewAmountNDS           =  I.AmountNDS    	  ,
-							            	   @NewAmountCurrNDS       =  I.AmountCurrNDS	  ,
-							            	   @NewNum                 =  I.Num          	  ,
-							            	   @NewDescription         =  I.[Description]  
-							            FROM inserted I									 
-										where @ID_entity_D = I.ID_Orders
-
-
-							            SELECT 
-							                   @OldID_Orders           =  D.ID_Orders         ,
-							            	   @OldID_status           =  D.ID_status    	  ,
-							            	   @OldID_TypeOrders       =  D.ID_TypeOrders	  ,
-							            	   @OldID_Currency         =  D.ID_Currency  	  ,
-											   @OldID_OrderAssignment  =  D.ID_OrderAssignment,
-											   @OldID_OrderCategory	   =  D.ID_OrderCategory  ,
-							            	   @OldDate                =  D.Date              ,       --convert(datetime,Date,109),
-							            	   @OldPayment_Date        =  D.Payment_Date      ,       --convert(datetime,Payment_Date,109),
-							            	   @OldAmount              =  D.Amount            ,
-							            	   @OldAmountCurr          =  D.AmountCurr        ,
-							            	   @OldAmountNDS           =  D.AmountNDS         ,
-							            	   @OldAmountCurrNDS       =  D.AmountCurrNDS     ,
-							            	   @OldNum                 =  D.Num               ,
-							            	   @OldDescription         =  D.[Description]  
-							            FROM Deleted D																		 
-										where @ID_entity_D = D.ID_Orders
-
-
-                                        IF @NewID_status <> @OldID_status 
-							               begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_status = Old ->"' +  ISNULL(CAST(@OldID_status AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_status AS NVARCHAR(50)),'') + '", ';
-							               end
-                                        
-							            IF @NewID_TypeOrders <> @OldID_TypeOrders 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_TypeOrders = Old ->"' +  ISNULL(CAST(@OldID_TypeOrders AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_TypeOrders AS NVARCHAR(50)),'') + '", ';
-							               end
-							            IF @NewID_Currency <> @OldID_Currency 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency = Old ->"' +  ISNULL(CAST(@OldID_Currency AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Currency AS NVARCHAR(50)),'') + '", ';
-							               end
-                                        IF @NewID_OrderAssignment <> @OldID_OrderAssignment 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_OrderAssignment = Old ->"' +  ISNULL(CAST(@OldID_OrderAssignment AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_OrderAssignment AS NVARCHAR(50)),'') + '", ';
-							               end        
-										IF @NewID_OrderCategory <> @OldID_OrderCategory 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_OrderCategory = Old ->"' +  ISNULL(CAST(@OldID_OrderCategory AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_OrderCategory AS NVARCHAR(50)),'') + '", ';
-							               end		
-
-
-							            IF @NewDate <> @OldDate 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date = Old ->"' +  ISNULL(CAST(Format(@OldDate,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
-							               end
-							            IF @NewPayment_Date <> @OldPayment_Date 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Payment_Date = Old ->"' +  ISNULL(CAST(Format(@OldPayment_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewPayment_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
-							               end
-							            IF @NewAmount <> @OldAmount 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Amount = Old ->"' +  ISNULL(CAST(@OldAmount AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmount AS NVARCHAR(50)),'') + '", ';
-							               end
-							            
-							            IF @NewAmountCurr <> @OldAmountCurr 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  AmountCurr = Old ->"' +  ISNULL(CAST(@OldAmountCurr AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmountCurr AS NVARCHAR(50)),'') + '", ';
-							               end
-							            IF @NewAmountNDS <> @OldAmountNDS 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  AmountNDS = Old ->"' +  ISNULL(CAST(@OldAmountNDS AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmountNDS AS NVARCHAR(50)),'') + '", ';
-							               end
-                                        
-							            IF @NewAmountCurrNDS <> @OldAmountCurrNDS 
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  AmountCurrNDS = Old ->"' +  ISNULL(CAST(@OldAmountCurrNDS AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmountCurrNDS AS NVARCHAR(50)),'') + '", ';
-							               end
-							            IF @NewNum <> @OldNum
-							               begin
-							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Num = Old ->"' +  ISNULL(@OldNum,'') + ' " NEW -> " ' + isnull(@NewNum,'') + '", ';
-							               end
-							            
-                                        IF @NewDescription <> @OldDescription
-							               begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                           end
-                                        SET @ChangeDescription = 'Updated: ' + ' ID_Orders = "' +  isnull(cast(@OldID_Orders as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                         --Удаляем запятую на конце
-                                        IF LEN(@ChangeDescription) > 0
-                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                        
-										INSERT  INTO dbo.Orders_Audit
-                                        ( 
-                                         ID_Orders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                        )
-                                         SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									    set @ChangeDescription = null 
-                                  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-   					
-                END
-            ELSE
-                BEGIN
-				            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Orders,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-                            DECLARE @OldID_Orders_2           bigint        ;
-							DECLARE @OldID_status_2           bigint        ;
-							DECLARE @OldID_TypeOrders_2       bigint        ;
-							DECLARE @OldID_Currency_2         bigint        ;
-							DECLARE @OldID_OrderAssignment_2  bigint        ;
-						    DECLARE @OldID_OrderCategory_2	  bigint        ;
-							DECLARE @OldDate_2                datetime      ;
-							DECLARE @OldPayment_Date_2        datetime      ;
-							DECLARE @OldAmount_2              float         ;
-							DECLARE @OldAmountCurr_2          float         ;
-							DECLARE @OldAmountNDS_2           float         ;
-							DECLARE @OldAmountCurrNDS_2       float         ;
-							DECLARE @OldNum_2                 nvarchar(50)  ;
-							DECLARE @OldDescription_2         nvarchar(4000);
-
-							declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						   
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						        begin
-							       begin try
-							            SELECT 
-							               @OldID_Orders_2          =  D.ID_Orders         ,
-							               @OldID_status_2     	    =  D.ID_status    	   ,
-							               @OldID_TypeOrders_2 	    =  D.ID_TypeOrders	   ,
-							               @OldID_Currency_2   	    =  D.ID_Currency  	   ,
-										   @OldID_OrderAssignment_2 =  D.ID_OrderAssignment,
-										   @OldID_OrderCategory_2	=  D.ID_OrderCategory  ,
-							               @OldDate_2          	    =  D.Date              ,    --convert(datetime,Date,109),         	 
-							               @OldPayment_Date_2  	    =  D.Payment_Date      ,    --convert(datetime,Payment_Date,109), 	 
-							               @OldAmount_2        	    =  D.Amount       	   ,
-							               @OldAmountCurr_2    	    =  D.AmountCurr   	   ,
-							               @OldAmountNDS_2     	    =  D.AmountNDS    	   ,
-							               @OldAmountCurrNDS_2 	    =  D.AmountCurrNDS	   ,
-							               @OldNum_2           	    =  D.Num          	   ,
-							               @OldDescription_2   	    =  D.[Description]  	 
-							            FROM deleted D									 
-										where @ID_entity_D_2 = D.ID_Orders
-
-                                        SET @ChangeDescription = 'Deleted: '
-							            + 'ID_Orders'           +' = "'+  ISNULL(CAST(@OldID_Orders_2          AS NVARCHAR(50)),'')        + '", '
-							            + 'ID_status'           +' = "'+  ISNULL(CAST(@OldID_status_2          AS NVARCHAR(50)),'') 	   + '", '
-							            + 'ID_TypeOrders'       +' = "'+  ISNULL(CAST(@OldID_TypeOrders_2      AS NVARCHAR(50)),'') 	   + '", '
-							            + 'ID_Currency'         +' = "'+  ISNULL(CAST(@OldID_Currency_2        AS NVARCHAR(50)),'') 	   + '", '
-										+ 'ID_OrderAssignment'  +' = "'+  ISNULL(CAST(@OldID_OrderAssignment_2 AS NVARCHAR(50)),'') 	   + '", '
-							            + 'ID_OrderCategory'    +' = "'+  ISNULL(CAST(@OldID_OrderCategory_2   AS NVARCHAR(50)),'') 	   + '", '
-							            + 'Date'                +' = "'+  ISNULL(CAST(Format(@OldDate_2,'yyyy-MM-dd HH:mm:ss.fff')          AS NVARCHAR(50)),'') 	   + '", '
-							            + 'Payment_Date'        +' = "'+  ISNULL(CAST(Format(@OldPayment_Date_2,'yyyy-MM-dd HH:mm:ss.fff')  AS NVARCHAR(50)),'') 	   + '", '
-							            + 'Amount'              +' = "'+  ISNULL(CAST(@OldAmount_2             AS NVARCHAR(50)),'') 	   + '", '
-							            + 'AmountCurr'          +' = "'+  ISNULL(CAST(@OldAmountCurr_2         AS NVARCHAR(50)),'') 	   + '", '
-							            + 'AmountNDS'           +' = "'+  ISNULL(CAST(@OldAmountNDS_2          AS NVARCHAR(50)),'') 	   + '", '
-							            + 'AmountCurrNDS'       +' = "'+  ISNULL(CAST(@OldAmountCurrNDS_2      AS NVARCHAR(50)),'') 	   + '", '
-							            + 'Num'                 +' = "'+  ISNULL(@OldNum_2          ,'') 	   + '", '
-							            + '[Description]'       +' = "'+  ISNULL(@OldDescription_2  ,'') 	   + '", '
-
-                                        IF LEN(@ChangeDescription) > 0
-                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                         INSERT  INTO dbo.Orders_Audit
-                                         ( 
-                                          ID_Orders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                         )
-                                          SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									     set @ChangeDescription = null   
-								    
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-
-                END  
-        END
-    ELSE
-        BEGIN
-		             DECLARE @ID_entity_I_2    bigint       ;
-				     DECLARE @login_name_2_I_2 nvarchar(128);
-				     DECLARE @ModifiedDate_I_2 DATETIME     ;
-				     DECLARE @Name_action_I_2  char(1)      ;
-
-					declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_Orders,@login_name,GETDATE(),'I'  
-					FROM  inserted I    
-
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-						   
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						 begin
-							  begin try
-                                    SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Orders = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                     
-                                     INSERT  INTO dbo.Orders_Audit
-                                     ( 
-                                      ID_Orders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                     )
-                                      SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									 set @ChangeDescription = null
-                               end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-
-                    END
-
-GO
-
-
-CREATE TABLE Orders_status_Audit
-(
-    AuditID              bigint IDENTITY(1,1)  not null,
-    Id_Status            bigint                null,
- 	ModifiedBy           nVARCHAR(128)         null,
-    ModifiedDate         DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation            CHAR(1)               null,
-    ChangeDescription    nvarchar(max)         null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Orders_Group;
-
-
-go
-
-CREATE TRIGGER trg_Orders_status_Audit ON Orders_status
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                            declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Status,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Status,@login_name,GETDATE(),'U'  
-							FROM  inserted D
-                            
-							
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
-							
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-
-
-	                       DECLARE @OldId_Status                  bigint        ;  
-						   DECLARE @OldName                       nvarchar(300) ;
-						   DECLARE @OldSysTypeOrderStatusName     nvarchar(300) ;
-						   DECLARE @OldDescription                nvarchar(4000);
-
-						   DECLARE @NewId_Status                  bigint        ;
-						   DECLARE @NewName                       nvarchar(300) ;
-						   DECLARE @NewSysTypeOrderStatusName     nvarchar(300) ;
-						   DECLARE @NewDescription                nvarchar(4000);
-
-                           declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-
-							            SELECT 
-							                   @NewId_Status              = D.Id_Status              ,    
-							                   @NewName                   = D.Name                   ,
-							                   @NewSysTypeOrderStatusName = D.SysTypeOrderStatusName ,
-							                   @NewDescription            = D.[Description]            
-							            FROM inserted  D
-							            where @ID_entity_D = D.Id_Status
-
-							            SELECT 
-							                   @OldId_Status              = D.Id_Status              ,
-                                               @OldName                   = D.Name                   ,
-                                               @OldSysTypeOrderStatusName = D.SysTypeOrderStatusName ,
-                                               @OldDescription            = D.[Description]           
-                                        FROM deleted D
-										where @ID_entity_D = D.Id_Status
-                         
-                                        IF @NewName <> @OldName 
-							               begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> " ' + isnull(@NewName,'') + '", ';
-							               end
-                                        IF @NewSysTypeOrderStatusName <> @OldSysTypeOrderStatusName
-							               begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeOrderStatusName = Old ->"' + ISNULL(@OldSysTypeOrderStatusName,'') + ' " NEW -> "' + ISNULL(@NewSysTypeOrderStatusName,'') + '", ';
-							               end
-                                        IF @NewDescription <> @OldDescription
-							               begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                           end
-                                        SET @ChangeDescription = 'Updated: ' + ' Id_Status = "' +  isnull(cast(@OldId_Status as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                         --Удаляем запятую на конце
-                                        IF LEN(@ChangeDescription) > 0
-                                             SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                                        INSERT  INTO dbo.Orders_status_Audit
-                                        ( 
-                                         Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                        )
-                                         SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									    set @ChangeDescription = null 
-
-									end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-   					
-                END
-            ELSE
-                BEGIN
-                            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Status,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-
-							DECLARE @OldId_Status_2                  bigint        ;  
-                            DECLARE @OldName_2                       nvarchar(300) ;
-                            DECLARE @OldSysTypeOrderStatusName_2     nvarchar(300) ;
-                            DECLARE @OldDescription_2                nvarchar(4000);
-                            
-                            declare cr_2 cursor local fast_forward for
-						   
-						   select 
-						   ID_entity   
-						   ,login_name  
-						   ,ModifiedDate
-						   ,Name_action 
-						   from @t_D_D 
-                           open cr_2       
-						   
-						   fetch next from cr_2 into 
-						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-
-                                           SELECT 
-							                      @OldId_Status_2               = D.Id_Status              ,
-                                                  @OldName_2                    = D.Name                   ,
-                                                  @OldSysTypeOrderStatusName_2  = D.SysTypeOrderStatusName ,
-                                                  @OldDescription_2             = D.[Description]           
-                                           FROM deleted D
-										   where @ID_entity_D_2 = D.Id_Status
-
-
-                                           SET @ChangeDescription = 'Deleted: '
-                                           + 'Id_Status'              +' = "'+ isnull(CAST(@OldId_Status_2 AS NVARCHAR(20)),'') + '", '
-                                           + 'Name'                   +' = "'+ ISNULL(@OldName_2, '') + '", '
-                                           + 'SysTypeOrderStatusName' +' = "'+ ISNULL(@OldSysTypeOrderStatusName_2, '') + '", '
-                                           + 'Description'            +' = "'+ ISNULL(@OldDescription_2, '') + '" ';
-
-                                           IF LEN(@ChangeDescription) > 0
-                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                           
-									      INSERT  INTO dbo.Orders_status_Audit
-                                          ( 
-                                           Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                          )
-                                          SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									      set @ChangeDescription = null
-
-								 end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-
-                         
-                END  
-        END
-    ELSE
-        BEGIN
-                    DECLARE @ID_entity_I_2    bigint       ;
-				    DECLARE @login_name_2_I_2 nvarchar(128);
-				    DECLARE @ModifiedDate_I_2 DATETIME     ;
-				    DECLARE @Name_action_I_2  char(1)      ;
-
-					declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-					
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.Id_Status,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-						   
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						begin
-							begin try
-
-							  SET @ChangeDescription = 'Inserted: '
-                                         + 'Id_Country = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-  
-		                      INSERT  INTO dbo.Orders_status_Audit
-                              ( 
-                               Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                              )
-                               SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-							  set @ChangeDescription = null
-						   end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-                           close cr_3
-                           deallocate cr_3         
-
-                    END
-
-GO
-
-
-CREATE TABLE Storage_location_Audit
-(
-    AuditID                   bigint IDENTITY(1,1)  not null,
-    ID_Storage_location       bigint                null,
- 	ModifiedBy                nVARCHAR(128)         null,
-    ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation                 CHAR(1)               null,
-    ChangeDescription         nvarchar(max)         null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-go
-
-CREATE TRIGGER trg_Storage_location_Audit ON Storage_location
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                          declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Storage_location,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Storage_location,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                           
-                           DECLARE @OldID_Storage_location        bigint         ;
-						   DECLARE @OldID_Type_Storage_location   bigint         ;
-						   DECLARE @OldId_Status                  bigint         ;
-						   DECLARE @OldId_Country                 bigint         ;
-						   DECLARE @OldKeySource                  bigint         ;
-						   DECLARE @OldName                       nvarchar(400)  ;
-						   DECLARE @OldCity                       nvarchar(200)  ;
-						   DECLARE @OldAdress                     nvarchar(800)  ;
-						   DECLARE @OldMail                       nvarchar(250)  ;
-						   DECLARE @OldPhone                      nvarchar(30)   ;
-						   DECLARE @OldDate_Created               datetime       ;
-						   DECLARE @OldDescription                nvarchar(4000) ;
-
-                           DECLARE @NewID_Storage_location        bigint         ;
-						   DECLARE @NewID_Type_Storage_location   bigint         ;
-						   DECLARE @NewId_Status                  bigint         ;
-						   DECLARE @NewId_Country                 bigint         ;
-						   DECLARE @NewKeySource                  bigint         ;
-						   DECLARE @NewName                       nvarchar(400)  ;
-						   DECLARE @NewCity                       nvarchar(200)  ;
-						   DECLARE @NewAdress                     nvarchar(800)  ;
-						   DECLARE @NewMail                       nvarchar(250)  ;
-						   DECLARE @NewPhone                      nvarchar(30)   ;
-						   DECLARE @NewDate_Created               datetime       ;
-						   DECLARE @NewDescription                nvarchar(4000) ; 
-
-						   declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-								        SELECT 
-							                @NewID_Storage_location     	= I.ID_Storage_location     ,
-							            	@NewID_Type_Storage_location	= I.ID_Type_Storage_location,
-											@NewId_Status                   = I.Id_Status               ,
-											@NewId_Country                  = I.Id_Country              ,
-							            	@NewKeySource               	= I.KeySource               ,
-							            	@NewName                    	= I.Name                    ,
-							            	@NewCity                    	= I.City                    ,
-							            	@NewAdress                  	= I.Adress                  ,
-							            	@NewMail                    	= I.Mail                    ,
-							            	@NewPhone                   	= I.Phone                   ,
-							            	@NewDate_Created                = I.Date_Created            ,
-							            	@NewDescription                 = I.[Description]        	  
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Storage_location;
-
-						                SELECT 
-							                @OldID_Storage_location     	= D.ID_Storage_location     ,
-							            	@OldID_Type_Storage_location	= D.ID_Type_Storage_location,
-											@OldId_Status                   = D.Id_Status               ,
-											@OldId_Country                  = D.Id_Country              ,
-							            	@OldKeySource               	= D.KeySource               ,
-							            	@OldName                    	= D.Name                    ,
-							            	@OldCity                    	= D.City                    ,
-							            	@OldAdress                  	= D.Adress                  ,
-							            	@OldMail                    	= D.Mail                    ,
-							            	@OldPhone                   	= D.Phone                   ,
-							            	@OldDate_Created                = D.Date_Created            ,
-							            	@OldDescription                 = D.[Description]        	  					
-							            FROM Deleted D	
-										 where @ID_entity_D = D.ID_Storage_location
-																	 
-
-                                        IF @NewID_Type_Storage_location  <> @OldID_Type_Storage_location  
-							               begin
-                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Type_Storage_location  = Old ->"' +  ISNULL(CAST(@OldID_Type_Storage_location  AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Type_Storage_location  AS NVARCHAR(20)),'') + '", ';
-							               end
-                                        
-										IF @NewId_Status  <> @OldId_Status 
-							               begin
-                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Status  = Old ->"' +  ISNULL(CAST(@OldId_Status  AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewId_Status  AS NVARCHAR(20)),'') + '", ';
-							               end
-
-										IF @NewId_Country  <> @OldId_Country 
-							               begin
-                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Country  = Old ->"' +  ISNULL(CAST(@OldId_Country  AS NVARCHAR(20)),'') + ' " NEW -> "' + isnull(CAST(@NewId_Country  AS NVARCHAR(20)),'') + '", ';
-							               end
-
-							            IF @NewKeySource <> @OldKeySource
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  KeySource = Old ->"' +  ISNULL(CAST(@OldKeySource AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewKeySource AS NVARCHAR(50)),'') + '", ';
-							               end
-							            
-							            IF @NewName <> @OldName
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> "' + isnull(@NewName,'') + '", ';
-							               end                  							            
-							            
-							            IF @NewCity <> @OldCity
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  City = Old ->"' +  ISNULL(@OldCity,'') + ' " NEW -> "' + isnull(@NewCity,'') + '", ';
-							               end
-							            
-							            IF @NewAdress <> @OldAdress
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Adress = Old ->"' +  ISNULL(@OldAdress,'') + ' " NEW -> "' + isnull(@NewAdress,'') + '", ';
-							               end
-							            
-							            IF @NewMail <> @OldMail
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Mail = Old ->"' +  ISNULL(@OldMail,'') + ' " NEW -> "' + isnull(@NewMail,'') + '", ';
-							               end
-							            
-                                        IF @NewPhone <> @OldPhone
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Phone = Old ->"' +  ISNULL(@OldPhone,'') + ' " NEW -> "' + isnull(@NewPhone,'') + '", ';
-							               end
-							            
-                                        IF @NewDate_Created <> @OldDate_Created
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
-							               end
-							            
-                                        IF @NewDescription <> @OldDescription
-							               begin
-                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> "' + ISNULL(@NewDescription,'') + '",';
-                                           end
-                                        SET @ChangeDescription = 'Updated: ' + ' ID_Storage_location = "' +  isnull(cast(@OldID_Storage_location as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                         --Удаляем запятую на конце
-                                        IF LEN(@ChangeDescription) > 0
-                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                                         INSERT  INTO dbo.Storage_location_Audit
-                                         ( 
-                                          ID_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                         )
-                                           SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									    set @ChangeDescription = null 
-							 end try
-							 begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-                                        				
-                END
-            ELSE
-                BEGIN
-                           declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Storage_location,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-							DECLARE @OldID_Storage_location_2        bigint         ;
-							DECLARE @OldID_Type_Storage_location_2   bigint         ;
-							DECLARE @OldId_Status_2                  bigint         ;
-							DECLARE @OldId_Country_2                 bigint         ;
-							DECLARE @OldKeySource_2                  bigint         ;
-							DECLARE @OldName_2                       nvarchar(400)  ;
-							DECLARE @OldCity_2                       nvarchar(200)  ;
-							DECLARE @OldAdress_2                     nvarchar(800)  ;
-							DECLARE @OldMail_2                       nvarchar(250)  ;
-							DECLARE @OldPhone_2                      nvarchar(30)   ;
-							DECLARE @OldDate_Created_2               datetime       ;
-							DECLARE @OldDescription_2                nvarchar(4000) ;
-
-							declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						   
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						         begin
-							         begin try
-                                                SELECT 
-							                        @OldID_Storage_location_2         = D.ID_Storage_location     ,
-							                    	@OldID_Type_Storage_location_2	  = D.ID_Type_Storage_location,
-													@OldId_Status_2                   = D.Id_Status               ,
-													@OldId_Country_2                  = D.Id_Country              ,
-							                    	@OldKeySource_2               	  = D.KeySource               ,
-							                    	@OldName_2                    	  = D.Name                    ,
-							                    	@OldCity_2                    	  = D.City                    ,
-							                    	@OldAdress_2                  	  = D.Adress                  ,
-							                    	@OldMail_2                    	  = D.Mail                    ,
-							                    	@OldPhone_2                   	  = D.Phone                   ,
-							                    	@OldDate_Created_2                = D.Date_Created            ,
-							                    	@OldDescription_2                 = D.[Description]        
-							                    FROM deleted D	
-												where @ID_entity_D_2 = D.ID_Storage_location
-
-                                                SET @ChangeDescription = 'Deleted: '
-							                    + 'ID_Storage_location'      +' = "'+  ISNULL(CAST(@OldID_Storage_location_2     AS NVARCHAR(20)),'')+ '", '
-							                    + 'ID_Type_Storage_location' +' = "'+  ISNULL(CAST(@OldID_Type_Storage_location_2  AS NVARCHAR(20)),'')+ '", '
-												+ 'Id_Status'                +' = "'+  ISNULL(CAST(@OldId_Status_2  AS NVARCHAR(20)),'')+ '", '
-												+ 'Id_Country'               +' = "'+  ISNULL(CAST(@OldId_Country_2  AS NVARCHAR(20)),'')+ '", '
-							                    + 'KeySource'                +' = "'+  ISNULL(CAST(@OldKeySource_2 AS NVARCHAR(50)),'') + '", '
-							                    + 'Name'                     +' = "'+  ISNULL(@OldName_2,'')+ '", '				
-							                    + 'City'                     +' = "'+  ISNULL(@OldCity_2,'') + '", '
-							                    + 'Adress'                   +' = "'+  ISNULL(@OldAdress_2,'')+ '", '
-							                    + 'Mail'                     +' = "'+  ISNULL(@OldMail_2,'') + '", '
-							                    + 'Phone'                    +' = "'+  ISNULL(@OldPhone_2,'')+ '", '
-							                    + 'Date_Created'             +' = "'+  ISNULL(CAST(Format(@OldDate_Created_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
-            				                    + 'Description'              +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
-
-							                    IF LEN(@ChangeDescription) > 0
-                                                        SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                                INSERT  INTO dbo.Storage_location_Audit
-                                                ( 
-                                                 ID_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                                )
-                                                 SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									            set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END  
-        END
-    ELSE
-        BEGIN
-                    DECLARE @ID_entity_I_2    bigint       ;
-				    DECLARE @login_name_2_I_2 nvarchar(128);
-				    DECLARE @ModifiedDate_I_2 DATETIME     ;
-				    DECLARE @Name_action_I_2  char(1)      ;
-
-					declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_Storage_location,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						  begin
-							     begin try
-
-                                     SET @ChangeDescription = 'Inserted: '
-                                            + 'ID_Storage_location = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                      
-                                     INSERT  INTO dbo.Storage_location_Audit
-                                     ( 
-                                      ID_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                     )
-                                      SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									set @ChangeDescription = null
-                                
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-
-                    END
-
-GO
-
-CREATE TABLE TRANSACTION_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_Transaction         bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)         null
- --   PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_Transaction_Audit ON [dbo].[Transaction]
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-				            declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Transaction,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Transaction,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-
-
-                           
-                            DECLARE @OldID_Transaction                  bigint          ;
-							DECLARE @OldID_Currency                     bigint       	;
-							DECLARE @OldID_Transaction_status           bigint       	;
-							DECLARE @OldID_Currency_Rate                bigint       	;
-							DECLARE @OldTransaction_Date                datetime     	;
-							DECLARE @OldKeySource                       bigint       	;
-							DECLARE @OldTransaction_name_sender         nvarchar(500)	;
-							DECLARE @OldJSON_Transaction_sender         nvarchar(max)	;
-							DECLARE @OldTransaction_Amount              float        	;
-							DECLARE @OldDescription                     nvarchar(4000)	;
-
-							DECLARE @NewID_Transaction                  bigint          ;
-							DECLARE @NewID_Currency                     bigint       	;
-							DECLARE @NewID_Transaction_status           bigint       	;
-							DECLARE @NewID_Currency_Rate                bigint       	;
-							DECLARE @NewTransaction_Date                datetime     	;
-							DECLARE @NewKeySource                       bigint       	;
-							DECLARE @NewTransaction_name_sender         nvarchar(500)	;
-							DECLARE @NewJSON_Transaction_sender         nvarchar(max)	;
-							DECLARE @NewTransaction_Amount              float        	;
-							DECLARE @NewDescription                     nvarchar(4000)	;
-                            
-
-							declare cr cursor local fast_forward for
-						   
-						    select 
-						    ID_entity    
-						    ,login_name   
-						    ,ModifiedDate 
-						    ,Name_action  
-						    from @t_U_D 
-                            open cr       
-						    
-						    fetch next from cr into 
-						    @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						    while @@FETCH_STATUS  = 0
-						          begin
-							          begin try								 
-											SELECT  
-                                                  @NewID_Transaction          = I.ID_Transaction          ,
-							                	  @NewID_Currency             = I.ID_Currency            	,
-							                	  @NewID_Transaction_status   = I.ID_Transaction_status  	,
-							                	  @NewID_Currency_Rate        = I.ID_Currency_Rate       	,
-							                	  @NewTransaction_Date        = I.Transaction_Date       	,
-							                	  @NewKeySource               = I.KeySource              	,
-							                	  @NewTransaction_name_sender = I.Transaction_name_sender	,
-							                	  @NewJSON_Transaction_sender = I.JSON_Transaction_sender	,
-							                	  @NewTransaction_Amount      = I.Transaction_Amount     	,
-							                	  @NewDescription             = I.[Description]                      
-							                FROM inserted I
-											where @ID_entity_D = I.ID_Transaction;
-											
-							                SELECT  
-                                                  @OldID_Transaction          = D.ID_Transaction          ,
-							                	  @OldID_Currency             = D.ID_Currency            	,
-							                	  @OldID_Transaction_status   = D.ID_Transaction_status  	,
-							                	  @OldID_Currency_Rate        = D.ID_Currency_Rate       	,
-							                	  @OldTransaction_Date        = D.Transaction_Date       	,
-							                	  @OldKeySource               = D.KeySource              	,
-							                	  @OldTransaction_name_sender = D.Transaction_name_sender	,
-							                	  @OldJSON_Transaction_sender = D.JSON_Transaction_sender	,
-							                	  @OldTransaction_Amount      = D.Transaction_Amount     	,
-							                	  @OldDescription             = D.[Description]                           
-							                FROM Deleted D
-											where @ID_entity_D = D.ID_Transaction; 	
-
-
-                                            IF @NewID_Currency <> @OldID_Currency 
-							                   begin
-                                                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency = Old ->"' +  ISNULL(cast(@OldID_Currency as nvarchar(20)),'') + ' " NEW -> " ' + isnull(cast(@NewID_Currency as nvarchar(20)),'') + '", ';
-							                   end
-                                            
-							                IF @NewID_Transaction_status <> @OldID_Transaction_status 
-							                   begin
-                                                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Transaction_status = Old ->"' +  ISNULL(cast(@OldID_Transaction_status as nvarchar(20)),'') + ' " NEW -> " ' + isnull(cast(@NewID_Transaction_status as nvarchar(20)),'') + '", ';
-							                   end
-                                            
-							                IF @NewID_Currency_Rate <> @OldID_Currency_Rate 
-							                   begin
-                                                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency_Rate = Old ->"' +  ISNULL(cast(@OldID_Currency_Rate as nvarchar(20)),'') + ' " NEW -> " ' + isnull(cast(@NewID_Currency_Rate as nvarchar(20)),'') + '", ';
-							                   end
-                                            
-							                IF @NewTransaction_Date <> @OldTransaction_Date
-							                   begin
-							                      SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Transaction_Date = Old ->"' +  ISNULL(CAST(Format(@OldTransaction_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewTransaction_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
-							                   end
-							                
-							                
-							                IF @NewKeySource <> @OldKeySource
-							                   begin
-							                      SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  KeySource = Old ->"' +  ISNULL(cast(@OldKeySource as nvarchar(100)),'') + ' " NEW -> " ' + isnull(cast(@NewKeySource as nvarchar(100)),'') + '", ';
-							                   end
-							                
-							                IF @NewTransaction_name_sender <> @OldTransaction_name_sender
-							                   begin
-							                      SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Transaction_name_sender = Old ->"' +  ISNULL(@OldTransaction_name_sender,'') + ' " NEW -> " ' + isnull(@NewTransaction_name_sender,'') + '", ';
-							                   end  																	   			
-							                
-							                IF @NewJSON_Transaction_sender <> @OldJSON_Transaction_sender
-							                   begin
-							                      SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  JSON_Transaction_sender = Old ->"' +  ISNULL(cast(@OldJSON_Transaction_sender as nvarchar(max)),'') + ' " NEW -> " ' + isnull(cast(@NewJSON_Transaction_sender as nvarchar(max)),'') + '", ';
-							                   end
-							                
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            SET @ChangeDescription = 'Updated: ' + ' ID_Transaction = "' +  isnull(cast(@OldID_Transaction as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                                            INSERT  INTO dbo.TRANSACTION_Audit
-                                            ( 
-                                             ID_Transaction,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                              SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null 
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-  					
-                END
-            ELSE
-                BEGIN
-				           declare @t_D_D table 
-						   (
-						   Id_Num         bigint        identity(1,1) not null,
-						   ID_entity      bigint        null,
-						   login_name     nvarchar(128) null,
-						   ModifiedDate   DATETIME      null,
-						   Name_action    char(1)       null
-						   );
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Transaction,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-
-                            DECLARE @OldID_Transaction_2                  bigint          ;
-							DECLARE @OldID_Currency_2                     bigint       	  ;
-							DECLARE @OldID_Transaction_status_2           bigint       	  ;
-							DECLARE @OldID_Currency_Rate_2                bigint       	  ;
-							DECLARE @OldTransaction_Date_2                datetime     	  ;
-							DECLARE @OldKeySource_2                       bigint       	  ;
-							DECLARE @OldTransaction_name_sender_2         nvarchar(500)	  ;
-							DECLARE @OldJSON_Transaction_sender_2         nvarchar(max)	  ;
-							DECLARE @OldTransaction_Amount_2              float        	  ;
-							DECLARE @OldDescription_2                     nvarchar(4000)  ;
-                            
-							declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						         begin
-							         begin try
-
-                                            SELECT
-                                                  @OldID_Transaction_2          = D.ID_Transaction          ,
-							                	  @OldID_Currency_2             = D.ID_Currency             ,
-							                	  @OldID_Transaction_status_2   = D.ID_Transaction_status   ,
-							                	  @OldID_Currency_Rate_2        = D.ID_Currency_Rate        ,
-							                	  @OldTransaction_Date_2        = D.Transaction_Date        ,
-							                	  @OldKeySource_2               = D.KeySource               ,
-							                	  @OldTransaction_name_sender_2 = D.Transaction_name_sender ,
-							                	  @OldJSON_Transaction_sender_2 = D.JSON_Transaction_sender ,
-							                	  @OldTransaction_Amount_2      = D.Transaction_Amount      ,
-							                	  @OldDescription_2             = D.[Description]           
-							                FROM deleted D	
-											where @ID_entity_D_2 = D.ID_Transaction;
-
-                                            SET @ChangeDescription = 'Deleted: '
-							                + 'ID_Transaction'           +' = "'+  ISNULL(CAST(@OldID_Transaction_2 AS NVARCHAR(50)),'')     + '", '
-							                + 'ID_Currency'              +' = "'+  ISNULL(CAST(@OldID_Currency_2 AS NVARCHAR(50)),'')     + '", '
-							                + 'ID_Transaction_status'    +' = "'+  ISNULL(CAST(@OldID_Transaction_status_2 AS NVARCHAR(50)),'')     + '", '
-							                + 'ID_Currency_Rate'         +' = "'+  ISNULL(CAST(@OldID_Currency_Rate_2 AS NVARCHAR(50)),'')     + '", '
-							                + 'Transaction_Date'         +' = "'+  ISNULL(CAST(Format(@OldTransaction_Date_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
-							                + 'KeySource'                +' = "'+  ISNULL(cast(@OldKeySource_2 as nvarchar(100)),'') + '", ' 
-							                + 'Transaction_name_sender'  +' = "'+  ISNULL(@OldTransaction_name_sender_2,'')+ '", ' 
-							                + 'JSON_Currency_Rate_Data'  +' = "'+  ISNULL(@OldJSON_Transaction_sender_2,'')+ '", '
-							                + 'Transaction_Amount      ' +' = "'+  ISNULL(cast(@OldTransaction_Amount_2 as nvarchar(20)),'')+ '", '		
-							                + 'Description'              +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
-
-                                           IF LEN(@ChangeDescription) > 0
-                                                   SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                            
-										   INSERT  INTO dbo.TRANSACTION_Audit
-                                           ( 
-                                            ID_Transaction,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END   
-        END
-    ELSE
-        BEGIN
-		            declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-                    insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_Transaction,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-					DECLARE @ID_entity_I_2    bigint       ;
-					DECLARE @login_name_2_I_2 nvarchar(128);
-					DECLARE @ModifiedDate_I_2 DATETIME     ;
-					DECLARE @Name_action_I_2  char(1)      ;
-
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						    begin
-							      begin try
-                                       SET @ChangeDescription = 'Inserted: '
-                                            + 'ID_Transaction = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                        
-									   INSERT  INTO dbo.TRANSACTION_Audit
-                                       ( 
-                                        ID_Transaction,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                       )
-                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									    set @ChangeDescription = null
-                                 end try
-								 begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3          
-
-                    END
-
-GO
-CREATE TABLE Transaction_status_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_Transaction_status  bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)        null
- --   PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_Transaction_status_Audit ON Transaction_status
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-				            declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Transaction_status,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Transaction_status,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-
-                           
-	                        DECLARE @OldID_Transaction_status      bigint           ;
-						    DECLARE @OldTypeTransactionName        nvarchar(300)	;
-						    DECLARE @OldSysTypeTransactionName     nvarchar(300)	;
-	                        DECLARE @OldDescription                nvarchar(4000)	;
-
-		                    DECLARE @NewID_Transaction_status      bigint           ;
-							DECLARE @NewTypeTransactionName        nvarchar(300)	;
-							DECLARE @NewSysTypeTransactionName     nvarchar(300)	;
-							DECLARE @NewDescription                nvarchar(4000)	;
-
-							declare cr cursor local fast_forward for
-						   
-						    select 
-						    ID_entity    
-						    ,login_name   
-						    ,ModifiedDate 
-						    ,Name_action  
-						    from @t_U_D 
-                            open cr       
-						    
-						    fetch next from cr into 
-						    @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						    while @@FETCH_STATUS  = 0
-						         begin
-							         begin try
-							                SELECT  
-							                     @NewID_Transaction_status    = I.ID_Transaction_status , 
-							                	 @NewTypeTransactionName      = I.TypeTransactionName   ,
-							                	 @NewSysTypeTransactionName   = I.SysTypeTransactionName,
-							                	 @NewDescription              = I.[Description]           
-							                FROM inserted I									 
-							                where @ID_entity_D = I.ID_Transaction_status;
-
-                                            SELECT  
-							                     @OldID_Transaction_status    = D.ID_Transaction_status ,
-							                	 @OldTypeTransactionName      = D.TypeTransactionName   ,
-							                	 @OldSysTypeTransactionName   = D.SysTypeTransactionName,
-							                	 @OldDescription              = D.[Description]          
-							                FROM Deleted D
-											where @ID_entity_D = D.ID_Transaction_status;
-
-                                            IF @NewTypeTransactionName <> @OldTypeTransactionName 
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeTransactionName = Old ->"' +  ISNULL(@OldTypeTransactionName,'') + ' " NEW -> " ' + isnull(@NewTypeTransactionName,'') + '", ';
-							                   end
-                                            
-							                IF @NewSysTypeTransactionName <> @OldSysTypeTransactionName
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeTransactionName = Old ->"' +  ISNULL(@OldTypeTransactionName,'') + ' " NEW -> " ' + isnull(@NewTypeTransactionName,'') + '", ';
-							                   end
-							                
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            SET @ChangeDescription = 'Updated: ' + ' ID_Transaction_status = "' +  isnull(cast(@OldID_Transaction_status as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                            
-											INSERT  INTO dbo.Transaction_status_Audit
-                                            ( 
-                                             ID_Transaction_status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                              SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null 
-                            		end try
-								    begin catch
-								       if xact_state() in (1, -1)
-									        begin
-									           ROLLBACK TRAN
-									        end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-                END
-            ELSE
-                BEGIN
-				            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Transaction_status,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-							DECLARE @OldID_Transaction_status_2      bigint         ;
-							DECLARE @OldTypeTransactionName_2        nvarchar(300)	;
-							DECLARE @OldSysTypeTransactionName_2     nvarchar(300)	;
-							DECLARE @OldDescription_2                nvarchar(4000)	;
-
-
-							declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						         begin
-							         begin try
-
-                                            SELECT 
-							                    @OldID_Transaction_status_2   = D.ID_Transaction_status  ,
-							                	@OldTypeTransactionName_2     = D.TypeTransactionName    ,
-							                	@OldSysTypeTransactionName_2  = D.SysTypeTransactionName ,
-							                	@OldDescription_2             = D.[Description]        
-							                FROM deleted D	
-											where @ID_entity_D_2 = D.ID_Transaction_status 
-
-                                            SET @ChangeDescription = 'Deleted: '
-							                + 'ID_Transaction_status'    +' = "'+  ISNULL(CAST(@OldID_Transaction_status_2 AS NVARCHAR(50)),'')     + '", '
-							                + 'TypeTransactionName'      +' = "'+  ISNULL(@OldTypeTransactionName_2,'')+ '", '				
-							                + 'SysTypeTransactionName'   +' = "'+  ISNULL(@OldSysTypeTransactionName_2,'')+ '", '
-							                + 'Description'              +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
-						  
-						                   IF LEN(@ChangeDescription) > 0
-                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                           
-										   INSERT  INTO dbo.Transaction_status_Audit
-                                           ( 
-                                            ID_Transaction_status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									       set @ChangeDescription = null
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END  
-        END
-    ELSE
-        BEGIN
-
-                   	declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_Transaction_status,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-					DECLARE @ID_entity_I_2    bigint       ;
-					DECLARE @login_name_2_I_2 nvarchar(128);
-					DECLARE @ModifiedDate_I_2 DATETIME     ;
-					DECLARE @Name_action_I_2  char(1)      ;
-
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						   begin
-							      begin try
-                                            SET @ChangeDescription = 'Inserted: '
-                                                    + 'ID_Transaction_status = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                            INSERT  INTO dbo.Transaction_status_Audit
-                                            ( 
-                                             ID_Transaction_status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                             SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-
-                    END
-
-GO
-
-CREATE TABLE Type_of_product_measurement_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_product_measurement bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)        null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_Type_of_product_measurement_Audit ON Type_of_product_measurement
-AFTER INSERT, UPDATE, DELETE
-
-AS  
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                           declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_product_measurement,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_product_measurement,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                           
-						   DECLARE @OldID_product_measurement      bigint        ; 
-						   DECLARE @OldProduct_measurement_Name    nvarchar(300) ;
-						   DECLARE @OldSysProductMeasurementName   nvarchar(300) ;
-	                       DECLARE @OldDescription                 nvarchar(4000);
-
-                           DECLARE @NewID_product_measurement      bigint        ;
-						   DECLARE @NewProduct_measurement_Name    nvarchar(300) ;
-						   DECLARE @NewSysProductMeasurementName   nvarchar(300) ;
-						   DECLARE @NewDescription                 nvarchar(4000);
-
-						   declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							        begin try
-							                SELECT 
-							                        @NewID_product_measurement     =  I.ID_product_measurement   ,
-							                		@NewProduct_measurement_Name   =  I.Product_measurement_Name ,
-							                		@NewSysProductMeasurementName  =  I.SysProductMeasurementName,
-							                		@NewDescription                =  I.[Description]         	
-							                FROM inserted I
-											where @ID_entity_D = I.ID_product_measurement;
-
-                                            SELECT 
-                                                    @OldID_product_measurement     =  D.ID_product_measurement   ,
-							                		@OldProduct_measurement_Name   =  D.Product_measurement_Name ,
-							                		@OldSysProductMeasurementName  =  D.SysProductMeasurementName,
-							                		@OldDescription                =  D.[Description]         								
-							                FROM Deleted D
-											where @ID_entity_D = D.ID_product_measurement;
-							                																		 
-                                            IF @NewProduct_measurement_Name <> @OldProduct_measurement_Name
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Product_measurement_Name = Old ->"' +  ISNULL(CAST(@OldProduct_measurement_Name AS NVARCHAR(300)),'') + ' " NEW -> " ' + isnull(CAST(@NewProduct_measurement_Name AS NVARCHAR(300)),'') + '", ';
-							                   end
-                                            
-							                IF @NewSysProductMeasurementName <> @OldSysProductMeasurementName
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysProductMeasurementName = Old ->"' +  ISNULL(CAST(@OldSysProductMeasurementName AS NVARCHAR(300)),'') + ' " NEW -> " ' + isnull(CAST(@NewSysProductMeasurementName AS NVARCHAR(300)),'') + '", ';
-							                   end
-							                
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            SET @ChangeDescription = 'Updated: ' + ' ID_product_measurement = "' +  isnull(cast(@OldID_product_measurement as nvarchar(20)),'')+ '" ' + @ChangeDescription + '"'
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                                            INSERT  INTO dbo.Type_of_product_measurement_Audit
-                                            ( 
-                                             ID_product_measurement,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                              SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null 
-								 end try
-								 begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-                END
-            ELSE
-                BEGIN
-				           declare @t_D_D table 
-						   (
-						   Id_Num         bigint        identity(1,1) not null,
-						   ID_entity      bigint        null,
-						   login_name     nvarchar(128) null,
-						   ModifiedDate   DATETIME      null,
-						   Name_action    char(1)       null
-						   );
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_product_measurement,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-						   DECLARE @OldID_product_measurement_2      bigint         ; 
-						   DECLARE @OldProduct_measurement_Name_2    nvarchar(300)	;
-						   DECLARE @OldSysProductMeasurementName_2   nvarchar(300)	;
-	                       DECLARE @OldDescription_2                 nvarchar(4000)	;
-                           
-						   declare cr_2 cursor local fast_forward for
-						   
-						   select 
-						   ID_entity   
-						   ,login_name  
-						   ,ModifiedDate
-						   ,Name_action 
-						   from @t_D_D 
-                           open cr_2       
-						   
-						   fetch next from cr_2 into 
-						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-                                        SELECT 
-							                @OldID_product_measurement_2   	= D.ID_product_measurement    ,
-							            	@OldProduct_measurement_Name_2 	= D.Product_measurement_Name  ,
-							            	@OldSysProductMeasurementName_2 = D.SysProductMeasurementName ,            
-							            	@OldDescription_2               = D.[Description]        
-							            FROM deleted D
-										where @ID_entity_D_2 = D.ID_product_measurement;
-
-                                        SET @ChangeDescription = 'Deleted: '
-							            + 'ID_product_measurement'     +' = "'+  ISNULL(CAST(@OldID_product_measurement_2 AS NVARCHAR(20)),'')+ '", '
-							            + 'Product_measurement_Name'   +' = "'+  ISNULL(@OldProduct_measurement_Name_2,'')+ '", '
-							            + 'SysProductMeasurementName'  +' = "'+  ISNULL(@OldSysProductMeasurementName_2,'')+ '", '
-							            + 'Description'                +' = "'+  ISNULL(@OldDescription_2  ,'')+ '"'
-
-                                        IF LEN(@ChangeDescription) > 0
-                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                        INSERT  INTO dbo.Type_of_product_measurement_Audit
-                                        ( 
-                                         ID_product_measurement,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                        )
-                                         SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									    set @ChangeDescription = null 
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END  
-        END
-    ELSE
-        BEGIN
-                    declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_product_measurement,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-					DECLARE @ID_entity_I_2    bigint       ;
-				    DECLARE @login_name_2_I_2 nvarchar(128);
-				    DECLARE @ModifiedDate_I_2 DATETIME     ;
-				    DECLARE @Name_action_I_2  char(1)      ;
-
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						   begin
-							      begin try
-                                          SET @ChangeDescription = 'Inserted: '
-                                                  + 'ID_product_measurement = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                          INSERT  INTO dbo.Type_of_product_measurement_Audit
-                                          ( 
-                                           ID_product_measurement,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                          )
-                                           SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									      set @ChangeDescription = null     
-								  
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-
-                    END
-
-GO
-
-CREATE TABLE Type_Storage_location_Audit
-(
-    AuditID                   bigint IDENTITY(1,1)  not null,
-    ID_Type_Storage_location  bigint                null,
- 	ModifiedBy                nVARCHAR(128)         null,
-    ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation                 CHAR(1)               null,
-    ChangeDescription         nvarchar(max)         null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_Type_Storage_location_Audit ON Type_Storage_location
-AFTER INSERT, UPDATE, DELETE
-
-AS 
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                            declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Type_Storage_location,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Type_Storage_location,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                           
-						   DECLARE @OldID_Type_Storage_location    bigint           ;
-						   DECLARE @OldName_Type_Storage_location  nvarchar(300)	;
-						   DECLARE @OldSysNameTypeStoragelocation  nvarchar(300)	;
-	                       DECLARE @OldDescription                 nvarchar(4000)	;
-
-                           DECLARE @NewID_Type_Storage_location    bigint           ;
-						   DECLARE @NewName_Type_Storage_location  nvarchar(300)	;
-						   DECLARE @NewSysNameTypeStoragelocation  nvarchar(300)	;
-						   DECLARE @NewDescription                 nvarchar(4000)	;
-                           
-						   declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						        begin
-							         begin try
-                         
-							            SELECT 
-							                @NewID_Type_Storage_location    = I.ID_Type_Storage_location  ,
-							            	@NewName_Type_Storage_location	= I.Name_Type_Storage_location,
-							            	@NewSysNameTypeStoragelocation  = I.SysNameTypeStoragelocation,            
-							            	@NewDescription                 = I.[Description]        	
-							            FROM inserted I
-										where @ID_entity_D = I.ID_Type_Storage_location;	
-							            
-							            SELECT 
-							                @OldID_Type_Storage_location    = D.ID_Type_Storage_location  ,
-							            	@OldName_Type_Storage_location  = D.Name_Type_Storage_location,
-							            	@OldSysNameTypeStoragelocation	= D.SysNameTypeStoragelocation,
-							            	@OldDescription                 = D.[Description]        							
-							            FROM Deleted D	
-										where @ID_entity_D = D.ID_Type_Storage_location; 
-
-                            
-							            IF @NewName_Type_Storage_location <> @OldName_Type_Storage_location
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Type_Storage_location = Old ->"' +  ISNULL(@OldName_Type_Storage_location,'') + ' " NEW -> "' + isnull(@NewName_Type_Storage_location,'') + '", ';
-							               end
-							            
-							            IF @NewSysNameTypeStoragelocation <> @OldSysNameTypeStoragelocation 
-							               begin
-							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysNameTypeStoragelocation = Old ->"' +  ISNULL(@OldSysNameTypeStoragelocation,'') + ' " NEW -> "' + isnull(@NewSysNameTypeStoragelocation,'') + '", ';
-							               end                  
-							            
-                                        IF @NewDescription <> @OldDescription
-							               begin
-                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> "' + ISNULL(@NewDescription,'') + '",';
-                                           end
-							            
-                                        SET @ChangeDescription = 'Updated: ' + ' ID_Type_Storage_location = "' +  isnull(cast(@OldID_Type_Storage_location as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                         --Удаляем запятую на конце
-                                        IF LEN(@ChangeDescription) > 0
-                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                            
-                                        INSERT  INTO dbo.Type_Storage_location_Audit
-                                        ( 
-                                         ID_Type_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                        )
-                                          SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                        
-									    set @ChangeDescription = null 
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-                END
-            ELSE
-                BEGIN
-                            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Type_Storage_location,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-                           DECLARE @OldID_Type_Storage_location_2    bigint         ;
-						   DECLARE @OldName_Type_Storage_location_2  nvarchar(300)	;
-						   DECLARE @OldSysNameTypeStoragelocation_2  nvarchar(300)	;
-	                       DECLARE @OldDescription_2                 nvarchar(4000)	;
-
-						   declare cr_2 cursor local fast_forward for
-						   
-						   select 
-						   ID_entity   
-						   ,login_name  
-						   ,ModifiedDate
-						   ,Name_action 
-						   from @t_D_D 
-                           open cr_2       
-						   
-						   fetch next from cr_2 into 
-						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						   while @@FETCH_STATUS  = 0
-						         begin
-							          begin try
-                                            SELECT 
-							                    @OldID_Type_Storage_location_2    = D.ID_Type_Storage_location   ,
-							                	@OldName_Type_Storage_location_2  = D.Name_Type_Storage_location ,
-							                	@OldSysNameTypeStoragelocation_2  = D.SysNameTypeStoragelocation ,
-							                	@OldDescription_2                 = D.[Description]        
-							                FROM deleted D
-											where @ID_entity_D_2 = D.ID_Type_Storage_location
-
-                                            SET @ChangeDescription = 'Deleted: '
-							                + 'ID_Type_Storage_location'   +' = "'+  ISNULL(CAST(@OldID_Type_Storage_location_2  AS NVARCHAR(50)),'')+ '", '
-							                + 'Name_Type_Storage_location' +' = "'+  ISNULL(@OldName_Type_Storage_location_2,'')+ '", '
-							                + 'SysNameTypeStoragelocation' +' = "'+  ISNULL(@OldSysNameTypeStoragelocation_2,'')+ '", '
-							                + 'Description'                +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
-                          
-						                    IF LEN(@ChangeDescription) > 0
-                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                            INSERT  INTO dbo.Type_Storage_location_Audit
-                                            ( 
-                                             ID_Type_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null  
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END  
-        END
-    ELSE
-        BEGIN
-                   declare @t_I_I table 
-				   (
-				   Id_Num         bigint        identity(1,1) not null,
-				   ID_entity      bigint        null,
-				   login_name     nvarchar(128) null,
-				   ModifiedDate   DATETIME      null,
-				   Name_action    char(1)       null
-				   );
-				   
-				   
-				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-				   SELECT I.ID_Type_Storage_location,@login_name,GETDATE(),'I'  
-				   FROM  inserted I 
-
-				   DECLARE @ID_entity_I_2    bigint       ;
-				   DECLARE @login_name_2_I_2 nvarchar(128);
-				   DECLARE @ModifiedDate_I_2 DATETIME     ;
-				   DECLARE @Name_action_I_2  char(1)      ;
-
-                   declare cr_3 cursor local fast_forward for
-						   
-				   select 
-				   ID_entity   
-				   ,login_name  
-				   ,ModifiedDate
-				   ,Name_action 
-				   from @t_I_I 
-                      open cr_3       
-				   
-				   fetch next from cr_3 into 
-				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-				   while @@FETCH_STATUS  = 0
-						   begin
-							     begin try
-
-                                       SET @ChangeDescription = 'Inserted: '
-                                               + 'ID_Type_Storage_location = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                       
-									   INSERT  INTO dbo.Type_Storage_location_Audit
-                                       ( 
-                                        ID_Type_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                       )
-                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									   set @ChangeDescription = null
-								 end try
-								 begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3           
-                    END
-
-GO
-
-CREATE TABLE TypeItem_Audit
-(
-    AuditID              bigint IDENTITY(1,1)  not null,
-    Id_TypeItem          bigint                null,
- 	ModifiedBy           nVARCHAR(128)         null,
-    ModifiedDate         DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation            CHAR(1)               null,
-    ChangeDescription    nvarchar(max)        null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_TypeItem_Audit ON TypeItem
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN       
-				            declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_TypeItem,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_TypeItem,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ; 
-
-                            
-                            DECLARE @OldId_TypeItem BIGINT;
-                            DECLARE @OldTypeItemName NVARCHAR(300);
-                            DECLARE @OldSysTypeItemName NVARCHAR(300);
-                            DECLARE @OldDescription NVARCHAR(4000);	                    
-	                       
-							DECLARE @NewId_TypeItem BIGINT;
-                            DECLARE @NewTypeItemName NVARCHAR(300);
-                            DECLARE @NewSysTypeItemName NVARCHAR(300);
-                            DECLARE @NewDescription NVARCHAR(4000);
-
-							declare cr cursor local fast_forward for
-						   
-						    select 
-						    ID_entity    
-						    ,login_name   
-						    ,ModifiedDate 
-						    ,Name_action  
-						    from @t_U_D 
-                            open cr       
-						    
-						    fetch next from cr into 
-						    @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						    while @@FETCH_STATUS  = 0
-						         begin
-							         begin try
-							               SELECT @NewId_TypeItem     = I.Id_TypeItem    ,
-							                      @NewTypeItemName    = I.TypeItemName   , 
-							                      @NewSysTypeItemName = I.SysTypeItemName,
-							                      @NewDescription     = I.[Description]
-							               FROM inserted I
-										   where @ID_entity_D = I.Id_TypeItem;
-
-									       SELECT @OldId_TypeItem     = D.Id_TypeItem    , 
-                                                  @OldTypeItemName    = D.TypeItemName   , 
-                                                  @OldSysTypeItemName = D.SysTypeItemName,
-                                                  @OldDescription     = D.[Description]
-                                           FROM deleted D
-										   where @ID_entity_D = D.Id_TypeItem;
-							               
-                                          IF @NewTypeItemName <> @OldTypeItemName 
-							                 begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeItemName = Old ->"' +  ISNULL(@OldTypeItemName,'') + ' " NEW -> " ' + isnull(@NewTypeItemName,'') + '", ';
-							                 end
-                                          IF @NewSysTypeItemName <> @OldSysTypeItemName
-							                 begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeItemName = Old ->"' + ISNULL(@OldSysTypeItemName,'') + ' " NEW -> "' + ISNULL(@NewSysTypeItemName,'') + '", ';
-							                 end
-                                          IF @NewDescription <> @OldDescription
-							                 begin
-                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                             end
-                                          SET @ChangeDescription = 'Updated: ' + ' Id_TypeItem = "' +  isnull(cast(@OldId_TypeItem as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                           --Удаляем запятую на конце
-                                          IF LEN(@ChangeDescription) > 0
-                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                              			  INSERT  INTO dbo.TypeItem_Audit
-                                          ( 
-                                           Id_TypeItem,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                          )
-                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									      set @ChangeDescription = null 
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-                END
-            ELSE
-                BEGIN        
-				            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_TypeItem,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-							DECLARE @OldId_TypeItem_2 BIGINT;
-                            DECLARE @OldTypeItemName_2 NVARCHAR(300);
-                            DECLARE @OldSysTypeItemName_2 NVARCHAR(300);
-                            DECLARE @OldDescription_2 NVARCHAR(4000);
-                            
-							declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						   
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						         begin
-							         begin try
-									       SELECT
-										          @OldId_TypeItem_2     = D.Id_TypeItem    , 
-                                                  @OldTypeItemName_2    = D.TypeItemName   , 
-                                                  @OldSysTypeItemName_2 = D.SysTypeItemName,
-                                                  @OldDescription_2     = D.[Description]
-                                           FROM deleted D
-										   where @ID_entity_D_2 = D.Id_TypeItem;
-										   
-                                           SET @ChangeDescription = 'Deleted: '
-                                              + 'Id_TypeItem'    + ' = "' + isnull(CAST(@OldId_TypeItem_2 AS NVARCHAR(20)),'') + '", '
-                                              + 'TypeItemName'   + ' = "' + ISNULL(@OldTypeItemName_2, '') + '", '
-                                              + 'SysTypeItemName'+ ' = "' + ISNULL(@OldSysTypeItemName_2, '') + '", '
-                                              + 'Description'    + ' = "' + ISNULL(@OldDescription_2, '') + '" ';
-                            
-                                           IF LEN(@ChangeDescription) > 0
-                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                           
-										  INSERT  INTO dbo.TypeItem_Audit
-                                          ( 
-                                           Id_TypeItem,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                          )
-                                           SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                          
-									      set @ChangeDescription = null 
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-
-                END  
-        END
-    ELSE
-        BEGIN       
-		            declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.Id_TypeItem,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-					DECLARE @ID_entity_I_2    bigint       ;
-				    DECLARE @login_name_2_I_2 nvarchar(128);
-				    DECLARE @ModifiedDate_I_2 DATETIME     ;
-				    DECLARE @Name_action_I_2  char(1)      ;
-
-		            declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						  begin
-							    begin try 
-                                       SET @ChangeDescription = 'Inserted: '
-                                            + 'Id_TypeItem = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                       
-									   INSERT  INTO dbo.TypeItem_Audit
-                                        ( 
-                                         Id_TypeItem,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                        )
-                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									   set @ChangeDescription = null
-                                 end try
-								 begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-
-                    END
-
-GO
-
-CREATE TABLE TypeOrders_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_TypeOrders          bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)        null
- --   PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Orders_Group;
-
-
-go
-
-CREATE TRIGGER trg_TypeOrders_Audit ON TypeOrders
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                      		declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_TypeOrders,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_TypeOrders,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                            
-                            DECLARE @OldID_TypeOrders       bigint        ;
-                            DECLARE @OldTypeOrdersName      nvarchar(300) ;
-                            DECLARE @OldTypeOrdersSysName   nvarchar(300) ;
-                            DECLARE @OldDescription         nvarchar(4000);                  
-	                       
-							DECLARE @NewID_TypeOrders       bigint        ;
-                            DECLARE @NewTypeOrdersName      nvarchar(300) ;
-                            DECLARE @NewTypeOrdersSysName   nvarchar(300) ;
-                            DECLARE @NewDescription         nvarchar(4000); 
-
-							declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-
-
-							          SELECT 
-							                 @NewID_TypeOrders     = I.ID_TypeOrders     ,
-							                 @NewTypeOrdersName    = I.TypeOrdersName    ,
-							                 @NewTypeOrdersSysName = I.TypeOrdersSysName ,
-							                 @NewDescription       = I.[Description]      
-							          FROM inserted I									 
-							          where @ID_entity_D = I.ID_TypeOrders 
-
-							          SELECT 
-                                             @OldID_TypeOrders     = D.ID_TypeOrders     ,
-                                             @OldTypeOrdersName    = D.TypeOrdersName    ,
-                                             @OldTypeOrdersSysName = D.TypeOrdersSysName ,
-                                             @OldDescription       = D.[Description]      
-							          FROM Deleted D								 
-                                      where @ID_entity_D = D.ID_TypeOrders
-
-
-
-                                      IF @NewTypeOrdersName <> @OldTypeOrdersName 
-							             begin
-                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeOrdersName = Old ->"' +  ISNULL(@OldTypeOrdersName,'') + ' " NEW -> " ' + isnull(@NewTypeOrdersName,'') + '", ';
-							             end
-                                      IF @NewTypeOrdersSysName <> @OldTypeOrdersSysName
-							             begin
-                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeOrdersSysName = Old ->"' + ISNULL(@OldTypeOrdersSysName,'') + ' " NEW -> "' + ISNULL(@NewTypeOrdersSysName,'') + '", ';
-							             end
-                                      IF @NewDescription <> @OldDescription
-							             begin
-                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                         end
-                                      SET @ChangeDescription = 'Updated: ' + ' ID_TypeOrders = "' +  isnull(cast(@OldID_TypeOrders as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                       --Удаляем запятую на конце
-                                      IF LEN(@ChangeDescription) > 0
-                                          SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                            
-                                      INSERT  INTO dbo.TypeOrders_Audit
-                                     ( 
-                                      ID_TypeOrders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                     )
-                                      SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									set @ChangeDescription = null 
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-   					
-                END
-            ELSE
-                BEGIN
-                           declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_TypeOrders,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-							DECLARE @OldID_TypeOrders_2       bigint        ;
-                            DECLARE @OldTypeOrdersName_2      nvarchar(300) ;
-                            DECLARE @OldTypeOrdersSysName_2   nvarchar(300) ;
-                            DECLARE @OldDescription_2         nvarchar(4000);     
-                            
-							declare cr_2 cursor local fast_forward for
-						   
-						   select 
-						   ID_entity   
-						   ,login_name  
-						   ,ModifiedDate
-						   ,Name_action 
-						   from @t_D_D 
-                           open cr_2       
-						   
-						   fetch next from cr_2 into 
-						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-
-							          SELECT 
-							                 @OldID_TypeOrders_2     = D.ID_TypeOrders     ,
-							                 @OldTypeOrdersName_2    = D.TypeOrdersName    ,
-							                 @OldTypeOrdersSysName_2 = D.TypeOrdersSysName ,
-							                 @OldDescription_2       = D.[Description]      
-							          FROM deleted D									 
-							          where @ID_entity_D_2 = D.ID_TypeOrders
-
-                                      SET @ChangeDescription = 'Deleted: '
-                                          + 'ID_TypeOrders'     +' = "'+ isnull(CAST(@OldID_TypeOrders_2 AS NVARCHAR(20)),'') + '", '
-                                          + 'TypeOrdersName'    +' = "'+ ISNULL(@OldTypeOrdersName_2, '') + '", '
-                                          + 'TypeOrdersSysName' +' = "'+ ISNULL(@OldTypeOrdersSysName_2, '') + '", '
-                                          + 'Description'       +' = "'+ ISNULL(@OldDescription_2, '') + '" ';
-
-                                      IF LEN(@ChangeDescription) > 0
-                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-						  
-                                      INSERT  INTO dbo.TypeOrders_Audit
-                                     ( 
-                                      ID_TypeOrders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                     )
-                                      SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END  
-        END
-    ELSE
-        BEGIN
-                    DECLARE @ID_entity_I_2    bigint       ;
-				    DECLARE @login_name_2_I_2 nvarchar(128);
-				    DECLARE @ModifiedDate_I_2 DATETIME     ;
-				    DECLARE @Name_action_I_2  char(1)      ; 
-
-					declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_TypeOrders,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-		            
-					declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-                                     SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_TypeOrders = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                     
-									 INSERT  INTO dbo.TypeOrders_Audit
-                                     ( 
-                                      ID_TypeOrders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                     )
-                                      SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									set @ChangeDescription = null
-
-                                  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-               
-
-                    END
-
-GO
-
-
-CREATE TABLE Branch_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_Branch               bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)        null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Employee_Group;
-
-
-go
-
-CREATE TRIGGER trg_Branch_Audit ON Branch
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                           	declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Branch,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Branch,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-
-
-							DECLARE @OldID_Branch     bigint        ;
-							DECLARE @OldId_Country    bigint        ;
-							DECLARE @OldCity          nvarchar(100) ;
-							DECLARE @OldAddress       nvarchar(300) ;
-							DECLARE @OldName_Branch   nvarchar(300) ;
-							DECLARE @OldMail          nvarchar(300) ;
-							DECLARE @OldPhone         nvarchar(15)  ;
-							DECLARE @OldPostal_Code   int           ;
-							DECLARE @OldINN           int           ;
-							DECLARE @OldDescription   nvarchar(1000);
-
-						   DECLARE @NewID_Branch     bigint        ;
-						   DECLARE @NewId_Country    bigint        ;
-						   DECLARE @NewCity          nvarchar(100) ;
-						   DECLARE @NewAddress       nvarchar(300) ;
-						   DECLARE @NewName_Branch   nvarchar(300) ;
-						   DECLARE @NewMail          nvarchar(300) ;
-						   DECLARE @NewPhone         nvarchar(15)  ;
-						   DECLARE @NewPostal_Code   int           ;
-						   DECLARE @NewINN           int           ;
-						   DECLARE @NewDescription   nvarchar(1000);
-
-
-						   declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-							            SELECT 
-                                              @NewID_Branch   = I.ID_Branch     ,
-											  @NewId_Country  = I.Id_Country  	,
-											  @NewCity        = I.City        	,
-											  @NewAddress     = I.[Address]     ,
-											  @NewName_Branch = I.Name_Branch 	,
-											  @NewMail        = I.Mail        	,
-											  @NewPhone       = I.Phone       	,
-											  @NewPostal_Code = I.Postal_Code 	,
-											  @NewINN         = I.INN         	,
-											  @NewDescription = I.[Description]    	
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Branch;
-
-                                        SELECT 
-                                              @OldID_Branch   = D.ID_Branch     ,
-											  @OldId_Country  = D.Id_Country  	,
-											  @OldCity        = D.City        	,
-											  @OldAddress     = D.[Address]     ,
-											  @OldName_Branch = D.Name_Branch 	,
-											  @OldMail        = D.Mail        	,
-											  @OldPhone       = D.Phone       	,
-											  @OldPostal_Code = D.Postal_Code 	,
-											  @OldINN         = D.INN         	,
-											  @OldDescription = D.[Description]   							
-							            FROM Deleted D
-										where @ID_entity_D = D.ID_Branch;
-
-
-                                       IF @NewId_Country <> @OldId_Country 
-							              begin
-                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Country = Old ->"' +  ISNULL(CAST(@OldId_Country AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewId_Country AS NVARCHAR(50)),'') + '", ';
-							              end
-                                       
-							           IF @NewCity <> @OldCity 
-							              begin
-							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  City = Old ->"' +  ISNULL(@OldCity,'') + ' " NEW -> " ' + isnull(@NewCity,'') + '", ';
-							              end
-                                                                                               
-							           IF @NewAddress <> @OldAddress 
-							              begin
-							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Address = Old ->"' +  ISNULL(@OldAddress,'') + ' " NEW -> " ' + isnull(@NewAddress,'') + '", ';
-							              end
-							           IF @NewName_Branch <> @OldName_Branch 
-							              begin
-							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Branch = Old ->"' +  ISNULL(@OldName_Branch,'') + ' " NEW -> " ' + isnull(@NewName_Branch,'') + '", ';
-							              end
-							           IF @NewMail <> @OldMail 
-							              begin
-							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Mail = Old ->"' +  ISNULL(@OldMail,'') + ' " NEW -> " ' + isnull(@NewMail,'') + '", ';
-							              end
-							           
-							           IF @NewPhone <> @OldPhone 
-							              begin
-							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Phone = Old ->"' +  ISNULL(@OldPhone,'') + ' " NEW -> " ' + isnull(@NewPhone,'') + '", ';
-							              end
-                           	          IF @NewPostal_Code <> @OldPostal_Code
-							              begin
-                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Postal_Code = Old ->"' +  ISNULL(CAST(@OldPostal_Code AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewPostal_Code AS NVARCHAR(50)),'') + '", ';
-							              end
-										  
-									  IF @NewINN <> @OldINN 
-							              begin
-                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  INN = Old ->"' +  ISNULL(CAST(@OldINN AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewINN AS NVARCHAR(50)),'') + '", ';
-							              end
-
-                                       IF @NewDescription <> @OldDescription
-							              begin
-                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                          end
-                                       SET @ChangeDescription = 'Updated: ' + ' ID_Branch = "' +  isnull(cast(@OldID_Branch as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                        --Удаляем запятую на конце
-                                       IF LEN(@ChangeDescription) > 0
-                                           SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                       
-									   INSERT  INTO dbo.Branch_Audit
-                                        ( 
-                                         ID_Branch,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                        )
-                                       SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									   set @ChangeDescription = null 
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-
-  					
-                END
-            ELSE
-                BEGIN
-                            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-                            insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Branch,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-							DECLARE @OldID_Branch_2     bigint        ;
-							DECLARE @OldId_Country_2    bigint        ;
-							DECLARE @OldCity_2          nvarchar(100) ;
-							DECLARE @OldAddress_2       nvarchar(300) ;
-							DECLARE @OldName_Branch_2   nvarchar(300) ;
-							DECLARE @OldMail_2          nvarchar(300) ;
-							DECLARE @OldPhone_2         nvarchar(15)  ;
-							DECLARE @OldPostal_Code_2   int           ;
-							DECLARE @OldINN_2           int           ;
-							DECLARE @OldDescription_2   nvarchar(1000);
-
-
-
-							declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						         begin
-							         begin try
-                                            SELECT 
-											     @OldID_Branch_2   = D.ID_Branch     ,
-												 @OldId_Country_2  = D.Id_Country  	,
-												 @OldCity_2        = D.City        	,
-												 @OldAddress_2     = D.[Address]     ,
-												 @OldName_Branch_2 = D.Name_Branch 	,
-												 @OldMail_2        = D.Mail        	,
-												 @OldPhone_2       = D.Phone       	,
-												 @OldPostal_Code_2 = D.Postal_Code 	,
-												 @OldINN_2         = D.INN         	,
-												 @OldDescription_2 = D.[Description]   
-							                FROM deleted D									 
-											where @ID_entity_D_2 = D.ID_Branch;
-
-                                            SET @ChangeDescription = 'Deleted: '
-							                + 'ID_Branch'           +' = "'+  ISNULL(CAST(@OldID_Branch_2     AS NVARCHAR(50)),'')     + '", '
-							                + 'Id_Country'          +' = "'+  ISNULL(CAST(@OldId_Country_2  AS NVARCHAR(50)),'') + '", '
-							                + 'City'                +' = "'+  ISNULL(@OldCity_2,'')+ '", '				
-							                + 'Address'             +' = "'+  ISNULL(@OldAddress_2,'')+ '", '
-							                + 'Name_Branch'         +' = "'+  ISNULL(@OldName_Branch_2,'') + '", '
-							                + 'Mail'                +' = "'+  ISNULL(@OldMail_2,'')+ '", '	   + '", '
-							                + 'Phone'               +' = "'+  ISNULL(@OldPhone_2,'')+ '", '
-								            + 'Postal_Code'         +' = "'+  ISNULL(CAST(@OldPostal_Code_2  AS NVARCHAR(50)),'') + '", '
-							                + 'INN'                 +' = "'+  ISNULL(CAST(@OldINN_2  AS NVARCHAR(50)),'') + '", '
-							                + 'Description'         +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
-
-                                           IF LEN(@ChangeDescription) > 0
-						                       SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                           INSERT  INTO dbo.Branch_Audit
-                                           ( 
-                                            ID_Branch,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									       set @ChangeDescription = null
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END  
-        END
-    ELSE
-        BEGIN
-                    declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_Branch,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-					DECLARE @ID_entity_I_2    bigint       ;
-				    DECLARE @login_name_2_I_2 nvarchar(128);
-				    DECLARE @ModifiedDate_I_2 DATETIME     ;
-				    DECLARE @Name_action_I_2  char(1)      ;
-
-                    declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						  begin
-							   begin try
-                                       SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Branch = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                       
-									   INSERT  INTO dbo.Branch_Audit
-                                       ( 
-                                        ID_Branch,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                       )
-                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									   set @ChangeDescription = null
-           
-		                       end try
-							   begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-                    END
-
-GO
-
-
-
-CREATE TABLE Connection_String_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_Connection_String   bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)        null
---    PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Employee_Group;
-
-
-go
-
-CREATE TRIGGER trg_Connection_String_Audit ON Connection_String
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-                           	declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Connection_String,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Connection_String,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-
-                            DECLARE @OldID_Connection_String   bigint        ;
-							DECLARE @OldPassword               nvarchar(50)  ;
-							DECLARE @OldLogin                  nvarchar(100) ;
-							DECLARE @OldDate_Created           datetime      ;
-							DECLARE @OldDescription            nvarchar(1000);
-
-							DECLARE @NewID_Connection_String   bigint        ;
-							DECLARE @NewPassword               nvarchar(50)  ;
-							DECLARE @NewLogin                  nvarchar(100) ;
-							DECLARE @NewDate_Created           datetime      ;
-							DECLARE @NewDescription            nvarchar(1000);
-
-
-						   declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-							            SELECT 
-                                               @NewID_Connection_String = I.ID_Connection_String,
-											   @NewPassword             = I.[Password]          ,  
-											   @NewLogin                = I.[Login]             ,  
-											   @NewDate_Created         = I.Date_Created        ,
-											   @NewDescription          = I.[Description]          	
-							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_Connection_String;
-
-                                        SELECT 
-                                               @OldID_Connection_String = D.ID_Connection_String,
-											   @OldPassword             = D.[Password]          ,  
-											   @OldLogin                = D.[Login]             ,  
-											   @OldDate_Created         = D.Date_Created        ,
-											   @OldDescription          = D.[Description]          							
-							            FROM Deleted D
-										where @ID_entity_D = D.ID_Connection_String;
-
-							           IF @NewPassword <> @OldPassword 
-							              begin
-							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Password = Old ->"' +  ISNULL(@OldPassword,'') + ' " NEW -> " ' + isnull(@NewPassword,'') + '", ';
-							              end
-
-							           IF @NewLogin <> @OldLogin 
-							              begin
-							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Login = Old ->"' +  ISNULL(@OldLogin,'') + ' " NEW -> " ' + isnull(@NewLogin,'') + '", ';
-							              end
-
-							           IF @NewDate_Created <> @OldDate_Created
-							              begin
-							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
-							              end
-							           
-                                       IF @NewDescription <> @OldDescription
-							              begin
-                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                          end
-                                       SET @ChangeDescription = 'Updated: ' + ' ID_Connection_String = "' +  isnull(cast(@OldID_Connection_String as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                        --Удаляем запятую на конце
-                                       IF LEN(@ChangeDescription) > 0
-                                           SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                       
-									   INSERT  INTO dbo.Connection_String_Audit
-                                        ( 
-                                         ID_Connection_String,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                        )
-                                       SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									   set @ChangeDescription = null 
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-
-  					
-                END
-            ELSE
-                BEGIN
-                            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-                            insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Connection_String,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-							
-                            DECLARE @OldID_Connection_String_2   bigint        ;
-							DECLARE @OldPassword_2               nvarchar(50)  ;
-							DECLARE @OldLogin_2                  nvarchar(100) ;
-							DECLARE @OldDate_Created_2           datetime      ;
-							DECLARE @OldDescription_2            nvarchar(1000);
-
-							declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						         begin
-							         begin try
-                                            SELECT 
-                                                   @OldID_Connection_String_2 = D.ID_Connection_String,
-												   @OldPassword_2             = D.[Password]          , 
-												   @OldLogin_2                = D.[Login]             , 
-												   @OldDate_Created_2         = D.Date_Created        ,
-												   @OldDescription_2          = D.[Description]               
-							                FROM deleted D									 
-											where @ID_entity_D_2 = D.ID_Connection_String;
-
-                                            SET @ChangeDescription = 'Deleted: '
-							                + 'ID_Connection_String'            +' = "'+  ISNULL(CAST(@OldID_Connection_String_2     AS NVARCHAR(50)),'')     + '", '
-						                    + 'Password'                +' = "'+  ISNULL(@OldPassword_2,'')+ '", '				
-							                + 'Login'             +' = "'+  ISNULL(@OldLogin_2,'')+ '", ' 
-							                + 'Date_Created'       +' = "'+  ISNULL(CAST(Format(@OldDate_Created_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
-							                + 'Description'         +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
-
-                                           IF LEN(@ChangeDescription) > 0
-						                       SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                           INSERT  INTO dbo.Connection_String_Audit
-                                           ( 
-                                            ID_Connection_String,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									       set @ChangeDescription = null
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END  
-        END
-    ELSE
-        BEGIN
-                    declare @t_I_I table 
-					(
-					Id_Num         bigint        identity(1,1) not null,
-					ID_entity      bigint        null,
-					login_name     nvarchar(128) null,
-					ModifiedDate   DATETIME      null,
-					Name_action    char(1)       null
-					);
-
-
-					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-					SELECT I.ID_Connection_String,@login_name,GETDATE(),'I'  
-					FROM  inserted I
-
-					DECLARE @ID_entity_I_2    bigint       ;
-				    DECLARE @login_name_2_I_2 nvarchar(128);
-				    DECLARE @ModifiedDate_I_2 DATETIME     ;
-				    DECLARE @Name_action_I_2  char(1)      ;
-
-                    declare cr_3 cursor local fast_forward for
-						   
-					select 
-					ID_entity   
-					,login_name  
-					,ModifiedDate
-					,Name_action 
-					from @t_I_I 
-                    open cr_3       
-					
-					fetch next from cr_3 into 
-					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-					while @@FETCH_STATUS  = 0
-						  begin
-							   begin try
-                                       SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Connection_String = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                                       
-									   INSERT  INTO dbo.Connection_String_Audit
-                                       ( 
-                                        ID_Connection_String,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                       )
-                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									   set @ChangeDescription = null
-           
-		                       end try
-							   begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-                    END
-
-GO
-
-
-CREATE TABLE Country_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    Id_Country             bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)        null
-  --  PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Employee_Group
-
-
-go
-
-CREATE TRIGGER trg_Country_Audit ON Country
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-	
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-
-
-							declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Country,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Country,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-
-
-						   DECLARE @OldId_Country         bigint        ;
-						   DECLARE @OldName_Country       nvarchar(150) ;
-						   DECLARE @OldName_English       nvarchar(150) ;
-						   DECLARE @OldCod_Country_Phone  nvarchar(10)  ;
-
-						   DECLARE @NewId_Country         bigint        ;
-						   DECLARE @NewName_Country       nvarchar(150) ;
-						   DECLARE @NewName_English       nvarchar(150) ;
-						   DECLARE @NewCod_Country_Phone  nvarchar(10)  ;
-						   
-						   declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-									 SELECT 
-										@NewId_Country       	 = I.Id_Country       ,
-										@NewName_Country     	 = I.Name_Country     ,
-										@NewName_English     	 = I.Name_English     ,
-										@NewCod_Country_Phone    = I.Cod_Country_Phone 
-									 FROM inserted I  
-									 where @ID_entity_D = I.Id_Country;	
-									 
-									 SELECT  
-									     @OldId_Country        =   D.Id_Country       ,
-										 @OldName_Country      =   D.Name_Country     ,
-										 @OldName_English      =   D.Name_English     ,
-										 @OldCod_Country_Phone =   D.Cod_Country_Phone
-									 FROM   Deleted D 
-									 where @ID_entity_D = D.Id_Country 				
-														
-                                     
-									 IF @NewName_Country <> @OldName_Country 
-							            begin
-                                         SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Country = Old ->"' +  ISNULL(@OldName_Country,'') + ' " NEW -> " ' + isnull(@NewName_Country,'') + '", ';
-							            end
-                            
-							        IF @NewName_English <> @OldName_English
-							           begin
-							             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_English = Old ->"' +  ISNULL(@OldName_English,'') + ' " NEW -> " ' + isnull(@NewName_English,'') + '", ';
-							           end
-
-							        IF @NewCod_Country_Phone <> @OldCod_Country_Phone 
-							           begin
-							             SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Cod_Country_Phone = Old ->"' +  ISNULL(@OldCod_Country_Phone,'') + ' " NEW -> " ' + isnull(@NewCod_Country_Phone,'') + '", ';
-							           end
-                                    
-									SET @ChangeDescription = 'Updated: ' + ' Id_Country = "' +  isnull(cast(@OldId_Country as nvarchar(20)),'')+ '" ' + @ChangeDescription
-
-									IF LEN(@ChangeDescription) > 0
-                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-
-                                    INSERT  INTO dbo.Country_Audit
-                                     ( 
-                                      Id_Country,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                     )
-                                       SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									set @ChangeDescription = null 
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr
-							  					
-                END
-            ELSE
-                BEGIN						  
-							declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Country,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-						   DECLARE @OldId_Country_2         bigint        ;
-						   DECLARE @OldName_Country_2       nvarchar(150) ;
-						   DECLARE @OldName_English_2       nvarchar(150) ;
-						   DECLARE @OldCod_Country_Phone_2  nvarchar(10)  ;
-						   
-						   declare cr_2 cursor local fast_forward for
-						   
-						   select 
-						   ID_entity   
-						   ,login_name  
-						   ,ModifiedDate
-						   ,Name_action 
-						   from @t_D_D 
-                           open cr_2       
-						   
-						   fetch next from cr_2 into 
-						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-								     
-									 SELECT  
-									     @OldId_Country_2        =   D.Id_Country       ,
-										 @OldName_Country_2      =   D.Name_Country     ,
-										 @OldName_English_2      =   D.Name_English     ,
-										 @OldCod_Country_Phone_2 =   D.Cod_Country_Phone
-									 FROM   Deleted D 
-									 where @ID_entity_D_2 = D.Id_Country 
-					
-					                 SET @ChangeDescription = 'Deleted: '
-							         + 'Id_Country'                +' = "'+  ISNULL(CAST(@OldId_Country_2  AS NVARCHAR(50)),'')+ '", '
-							         + 'Name_Country'              +' = "'+  ISNULL(@OldName_Country_2,'')+ '", '				
-							         + 'Name_English'              +' = "'+  ISNULL(@OldName_English_2,'')+ '", '
-							         + 'Cod_Country_Phone'         +' = "'+  ISNULL(@OldCod_Country_Phone_2,'') + '", '
-
-
-                                     IF LEN(@ChangeDescription) > 0
-						                     SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                    INSERT  INTO dbo.Country_Audit
-                                     ( 
-                                      Id_Country,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                     )
-                                      SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-                END  
-        END
-    ELSE
-        BEGIN
-
-				           DECLARE @ID_entity_I_2    bigint       ;
-				           DECLARE @login_name_2_I_2 nvarchar(128);
-				           DECLARE @ModifiedDate_I_2 DATETIME     ;
-				           DECLARE @Name_action_I_2  char(1)      ;
-
-							declare @t_I_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-
-							insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT I.Id_Country,@login_name,GETDATE(),'I'  
-							FROM  inserted I
-						   
-						   declare cr_3 cursor local fast_forward for
-						   
-						   select 
-						   ID_entity   
-						   ,login_name  
-						   ,ModifiedDate
-						   ,Name_action 
-						   from @t_I_I 
-                           open cr_3       
-						   
-						   fetch next from cr_3 into 
-						   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-								     				 
-					
-					                 SET @ChangeDescription = 'Inserted: '
-                                         + 'Id_Country = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-  
-                                    INSERT  INTO dbo.Country_Audit
-                                     ( 
-                                      Id_Country,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                     )
-                                      SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-
-                    END
-
 
 GO
 
@@ -7934,7 +3927,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)  = '';
 
 
     SELECT  @login_name = login_name
@@ -8013,6 +4006,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								        set @ChangeDescription = ''
+
 							            SELECT
 										    @NewID_Department            = I.ID_Department          ,
 											@NewID_Head_Department     	 = I.ID_Head_Department     ,
@@ -8036,36 +4031,37 @@ AS
 										where @ID_entity_D = D.ID_Department;
 
 
-                                       IF @NewID_Head_Department <> @OldID_Head_Department 
+
+                                       IF ISNULL(CAST(@NewID_Head_Department AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Head_Department AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Head_Department = Old ->"' +  ISNULL(CAST(@OldID_Head_Department AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Head_Department AS NVARCHAR(50)),'') + '", ';
 							              end
                                        
-									   IF @NewID_Vice_Head_Department <> @OldID_Vice_Head_Department 
+									   IF ISNULL(CAST(@NewID_Vice_Head_Department AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Vice_Head_Department AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Vice_Head_Department = Old ->"' +  ISNULL(CAST(@OldID_Vice_Head_Department AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Vice_Head_Department AS NVARCHAR(50)),'') + '", ';
 							              end
 
-							           IF @NewName_Department <> @OldName_Department
+							           IF ISNULL(@NewName_Department,'null') <> ISNULL(@OldName_Department,'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Department = Old ->"' +  ISNULL(@OldName_Department,'') + ' " NEW -> " ' + isnull(@NewName_Department,'') + '", ';
 							              end
 
-									   IF @NewID_Branch <> @OldID_Branch 
+									   IF ISNULL(CAST(@NewID_Branch AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Branch AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Branch = Old ->"' +  ISNULL(CAST(@OldID_Branch AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Branch AS NVARCHAR(50)),'') + '", ';
 							              end
 
-									   IF @NewDepartment_Code <> @OldDepartment_Code 
+									   IF ISNULL(CAST(@NewDepartment_Code AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldDepartment_Code AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Department_Code = Old ->"' +  ISNULL(CAST(@OldDepartment_Code AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewDepartment_Code AS NVARCHAR(50)),'') + '", ';
 							              end
 							           
-                                       IF @NewDescription <> @OldDescription
+                                       IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                           end
-                                       SET @ChangeDescription = 'Updated: ' + ' ID_Department = "' +  isnull(cast(@OldID_Department as nvarchar(20)),'')+ '" ' + @ChangeDescription
+                                       SET @ChangeDescription = 'Updated: ' + ' ID_Department = "' +  isnull(cast(@OldID_Department as nvarchar(20)),'')+ '" ' + ISNULL(@ChangeDescription,'')
                                         --Удаляем запятую на конце
                                        IF LEN(@ChangeDescription) > 0
                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -8076,7 +4072,7 @@ AS
                                         )
                                        SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null 
+									   set @ChangeDescription = '' 
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -8144,6 +4140,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									        set @ChangeDescription = ''
+
                                             SELECT 
 										        @OldID_Department_2              = D.ID_Department          ,
 										    	@OldID_Head_Department_2     	 = D.ID_Head_Department     ,
@@ -8173,7 +4171,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -8231,8 +4229,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							           set @ChangeDescription = ''
+
                                        SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Department = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_Department = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                        
 									   INSERT  INTO dbo.Department_Audit
                                        ( 
@@ -8240,7 +4240,7 @@ AS
                                        )
                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null
+									   set @ChangeDescription = ''
            
 		                       end try
 							   begin catch
@@ -8275,7 +4275,7 @@ CREATE TABLE Employees_Audit
 	Operation              CHAR(1)               null,
     ChangeDescription      nvarchar(max)         null
   --  PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Employee_Group
+) on Employee_Group;
 
 
 go
@@ -8287,7 +4287,7 @@ AS
     set nocount,xact_abort on;
 	
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)='';
 
 
     SELECT  @login_name = login_name
@@ -8406,6 +4406,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								     set @ChangeDescription = ''
+
                                      SELECT  
 									     @NewID_Employee               	  = I.ID_Employee               ,	
 										 @NewID_Department             	  = I.ID_Department             ,
@@ -8433,8 +4435,8 @@ AS
 										 @NewDate_Of_Birth             	  = I.Date_Of_Birth             ,
 										 @NewDescription                  = I.[Description]               
 									 FROM inserted I  
-									 where @ID_entity_D = I.ID_Employee;	
-									 
+									 where @ID_entity_D = I.ID_Employee;								     
+								     
 									 SELECT  
 									     @OldID_Employee               	  = D.ID_Employee               ,	
 										 @OldID_Department             	  = D.ID_Department             ,
@@ -8462,129 +4464,129 @@ AS
 										 @OldDate_Of_Birth             	  = D.Date_Of_Birth             ,
 										 @OldDescription                  = D.[Description]               
 									 FROM   Deleted D 
-									 where @ID_entity_D = D.ID_Employee; 				
+									 where @ID_entity_D = D.ID_Employee; 					
 														
-                                     IF @NewID_Department <> @OldID_Department 
+                                     IF ISNULL(CAST(@NewID_Department AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Department AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Department = Old ->"' +  ISNULL(CAST(@OldID_Department AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Department AS NVARCHAR(50)),'') + '", ';
 							              end
 
-								     IF @NewID_Group <> @OldID_Group 
+								     IF ISNULL(CAST(@NewID_Group AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Group AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Group = Old ->"' +  ISNULL(CAST(@OldID_Group AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Group AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                     IF @NewID_The_Subgroup <> @OldID_The_Subgroup 
+                                     IF ISNULL(CAST(@NewID_The_Subgroup AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_The_Subgroup AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_The_Subgroup = Old ->"' +  ISNULL(CAST(@OldID_The_Subgroup AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_The_Subgroup AS NVARCHAR(50)),'') + '", ';
 							              end
                                      
-									 IF @NewID_Passport <> @OldID_Passport 
+									 IF ISNULL(CAST(@NewID_Passport AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Passport AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Passport = Old ->"' +  ISNULL(CAST(@OldID_Passport AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Passport AS NVARCHAR(50)),'') + '", ';
 							              end
 
-								     IF @NewID_Branch <> @OldID_Branch 
+								     IF ISNULL(CAST(@NewID_Branch AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Branch AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Branch = Old ->"' +  ISNULL(CAST(@OldID_Branch AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Branch AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                     IF @NewID_Post <> @OldID_Post
+                                     IF ISNULL(CAST(@NewID_Post AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Post AS NVARCHAR(50)),'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Post = Old ->"' +  ISNULL(CAST(@OldID_Post AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Post AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                     IF @NewID_Status_Employee <> @OldID_Status_Employee
+                                     IF ISNULL(CAST(@NewID_Status_Employee AS NVARCHAR(50)),'null') <>  ISNULL(CAST(@OldID_Status_Employee AS NVARCHAR(50)),'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Status_Employee = Old ->"' +  ISNULL(CAST(@OldID_Status_Employee AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Status_Employee AS NVARCHAR(50)),'') + '", ';
 							              end
 
-								     IF @NewID_Connection_String <> @OldID_Connection_String 
+								     IF ISNULL(CAST(@NewID_Connection_String AS NVARCHAR(50)),'null') <>  ISNULL(CAST(@OldID_Connection_String AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Connection_String = Old ->"' +  ISNULL(CAST(@OldID_Connection_String AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Connection_String AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                     IF @NewID_Chief <> @OldID_Chief 
+                                     IF ISNULL(CAST(@NewID_Chief AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Chief AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Chief = Old ->"' +  ISNULL(CAST(@OldID_Chief AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Chief AS NVARCHAR(50)),'') + '", ';
 							              end
 
-									 IF @NewName <> @OldName 
+									 IF ISNULL(@NewName,'null') <> ISNULL(@OldName,'null') 
 							            begin
                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> " ' + isnull(@NewName,'') + '", ';
 							            end
 
-									 IF @NewSurName <> @OldSurName 
+									 IF ISNULL(@NewSurName,'null') <> ISNULL(@OldSurName,'null') 
 							            begin
                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SurName = Old ->"' +  ISNULL(@OldSurName,'') + ' " NEW -> " ' + isnull(@NewSurName,'') + '", ';
 							            end
 
-									 IF @NewLastName <> @OldLastName 
+									 IF ISNULL(@NewLastName,'null') <> ISNULL(@OldLastName,'null') 
 							            begin
                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  LastName = Old ->"' +  ISNULL(@OldLastName,'') + ' " NEW -> " ' + isnull(@NewLastName,'') + '", ';
 							            end
 
-                                     IF @NewDate_Of_Hiring <> @OldDate_Of_Hiring
+                                     IF ISNULL(CAST(Format(@NewDate_Of_Hiring,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Of_Hiring,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Of_Hiring = Old ->"' +  ISNULL(CAST(Format(@OldDate_Of_Hiring,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Of_Hiring,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							              end
 
-									IF @NewDate_Card_Created_Employee <> @OldDate_Card_Created_Employee
+									IF ISNULL(CAST(Format(@NewDate_Card_Created_Employee,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Card_Created_Employee,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Card_Created_Employee = Old ->"' +  ISNULL(CAST(Format(@OldDate_Card_Created_Employee,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Card_Created_Employee,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							              end
                                    
-									IF @NewResidential_Address <> @OldResidential_Address 
+									IF ISNULL(@NewResidential_Address,'null') <> ISNULL(@OldResidential_Address,'null') 
 							            begin
                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Residential_Address = Old ->"' +  ISNULL(@OldResidential_Address,'') + ' " NEW -> " ' + isnull(@NewResidential_Address,'') + '", ';
 							            end
 
-									IF @NewHome_Phone <> @OldHome_Phone
+									IF isnull(@NewHome_Phone,'null') <> isnull(@OldHome_Phone,'null')
 							            begin
                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Home_Phone = Old ->"' +  ISNULL(@OldHome_Phone,'') + ' " NEW -> " ' + isnull(@NewHome_Phone,'') + '", ';
 							            end
 
-									IF @NewCell_Phone <> @OldCell_Phone
+									IF isnull(@NewCell_Phone,'null') <> isnull(@OldCell_Phone,'null')
 							            begin
                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Cell_Phone = Old ->"' +  ISNULL(@OldCell_Phone,'') + ' " NEW -> " ' + isnull(@NewCell_Phone,'') + '", ';
 							            end
 
-								    IF @NewImage_Employees <> @OldImage_Employees
+								    IF isnull(@NewImage_Employees,'null') <> isnull(@OldImage_Employees,'null')
 							                   begin
 							                     SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Image_Employees = '  +  '"Изображение было изменено или удалено", ';
 							                   end
 
-									IF @NewWork_Phone <> @OldWork_Phone
+									IF isnull(@NewWork_Phone,'null') <> isnull(@OldWork_Phone,'null')
 							            begin
                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Work_Phone = Old ->"' +  ISNULL(@OldWork_Phone,'') + ' " NEW -> " ' + isnull(@NewWork_Phone,'') + '", ';
 							            end 
 
-									IF @NewMail <> @OldMail
+									IF isnull(@NewMail,'null') <> isnull(@OldMail,'null')
 							            begin
                                           SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Mail = Old ->"' +  ISNULL(@OldMail,'') + ' " NEW -> " ' + isnull(@NewMail,'') + '", ';
 							            end 
 
-							        IF @NewPol <> @OldPol 
+							        IF ISNULL(CAST(@NewPol AS NVARCHAR(1)),'null') <> ISNULL(CAST(@OldPol AS NVARCHAR(1)),'null') 
 							              begin
 							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Pol = Old ->"' +  ISNULL(CAST(@OldPol AS NVARCHAR(1)),'') + ' " NEW -> " ' + isnull(CAST(@NewPol AS NVARCHAR(1)),'') + '", ';
 							              end
 
-                                   IF @NewDate_Of_Dismissal <> @OldDate_Of_Dismissal
+                                   IF ISNULL(CAST(Format(@NewDate_Of_Dismissal,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Of_Dismissal,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							              begin
 							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Of_Dismissal = Old ->"' +  ISNULL(CAST(Format(@OldDate_Of_Dismissal,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Of_Dismissal,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							              end
 
-								   IF @NewDate_Of_Birth <> @OldDate_Of_Birth
+								   IF ISNULL(CAST(Format(@NewDate_Of_Birth,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Of_Birth,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							              begin
 							                 SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Of_Birth = Old ->"' +  ISNULL(CAST(Format(@OldDate_Of_Birth,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Of_Birth,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                   IF @NewDescription <> @OldDescription
+                                   IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
 							              begin
                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                           end
                                     
-									SET @ChangeDescription = 'Updated: ' + ' ID_Employee = "' +  isnull(cast(@OldID_Employee as nvarchar(20)),'')+ '" ' + @ChangeDescription
+									SET @ChangeDescription = 'Updated: ' + ' ID_Employee = "' +  isnull(cast(@OldID_Employee as nvarchar(20)),'')+ '" ' + ISNULL(@ChangeDescription,'')
 
 									IF LEN(@ChangeDescription) > 0
                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -8596,7 +4598,7 @@ AS
                                      )
                                        SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									set @ChangeDescription = null 
+									set @ChangeDescription = '' 
 
 								  end try
 								  begin catch
@@ -8682,6 +4684,7 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								      set @ChangeDescription = ''
 								     
                                       SELECT  
 									     @OldID_Employee_2               	  = D.ID_Employee               ,	
@@ -8748,7 +4751,7 @@ AS
                                      )
                                       SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									set @ChangeDescription = null
+									set @ChangeDescription = ''
 
 								  end try
 								  begin catch
@@ -8808,10 +4811,10 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-								     				 
+								     set @ChangeDescription = ''				 
 					
 					                 SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Employee = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_Employee = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
   
                                     INSERT  INTO dbo.Employees_Audit
                                      ( 
@@ -8819,7 +4822,7 @@ AS
                                      )
                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									set @ChangeDescription = null
+									set @ChangeDescription = ''
 
 								  end try
 								  begin catch
@@ -8847,6 +4850,483 @@ AS
 GO
 
 
+CREATE TABLE Exemplar_Audit
+(
+    AuditID                   bigint IDENTITY(1,1)  not null,
+    ID_Exemplar               bigint                null,
+ 	ModifiedBy                nVARCHAR(128)         null,
+    ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation                 CHAR(1)               null,
+    ChangeDescription         nvarchar(max)         null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Exemplar_Audit ON Exemplar
+AFTER INSERT, UPDATE, DELETE
+
+AS  
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                         	declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Exemplar,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Exemplar,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                           
+                           DECLARE @OldID_Exemplar                bigint         ;
+						   DECLARE @OldId_Item                    bigint         ;
+						   DECLARE @OldID_Currency                bigint         ;
+						   DECLARE @OldID_Storage_location        bigint         ;
+						   DECLARE @OldKeySource                  bigint         ;
+						   DECLARE @OldSerial_number              nvarchar(500)  ;
+						   DECLARE @OldID_Condition_of_the_item   bigint         ;
+						   DECLARE @OldOld_Price_no_NDS           float          ;
+						   DECLARE @OldRefund                     bit            ;
+						   DECLARE @OldDate_Refund                datetime       ;
+						   DECLARE @OldReturn_Note                nvarchar(4000) ;
+						   DECLARE @OldOld_Price_NDS              float          ;
+						   DECLARE @OldJSON_Size_Volume           nvarchar(max)  ;
+						   DECLARE @OldNew_Price_NDS              float          ;
+						   DECLARE @OldNew_Price_no_NDS           float          ;
+						   DECLARE @OldDate_Created               datetime       ;
+						   DECLARE @OldDescription                nvarchar(4000) ;
+
+						   DECLARE @NewID_Exemplar                bigint         ;
+						   DECLARE @NewId_Item                    bigint         ;
+						   DECLARE @NewID_Currency                bigint         ;
+						   DECLARE @NewID_Storage_location        bigint         ;
+						   DECLARE @NewKeySource                  bigint         ;
+						   DECLARE @NewSerial_number              nvarchar(500)  ;
+						   DECLARE @NewID_Condition_of_the_item   bigint         ;
+						   DECLARE @NewOld_Price_no_NDS           float          ;
+						   DECLARE @NewRefund                     bit            ;
+						   DECLARE @NewDate_Refund                datetime       ;
+						   DECLARE @NewReturn_Note                nvarchar(4000) ;
+						   DECLARE @NewOld_Price_NDS              float          ;
+						   DECLARE @NewJSON_Size_Volume           nvarchar(max)  ;
+						   DECLARE @NewNew_Price_NDS              float          ;
+						   DECLARE @NewNew_Price_no_NDS           float          ;
+						   DECLARE @NewDate_Created               datetime       ;
+						   DECLARE @NewDescription                nvarchar(4000) ;
+
+						   declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								        set @ChangeDescription = ''
+
+							            SELECT 
+							                @NewID_Exemplar             	= I.ID_Exemplar             , 
+							            	@NewId_Item                 	= I.Id_Item                 ,
+							            	@NewID_Currency             	= I.ID_Currency             ,
+							            	@NewID_Storage_location     	= I.ID_Storage_location     ,
+							            	@NewKeySource               	= I.KeySource               ,
+							            	@NewSerial_number           	= I.Serial_number           ,
+							            	@NewID_Condition_of_the_item	= I.ID_Condition_of_the_item,
+							            	@NewOld_Price_no_NDS        	= I.Old_Price_no_NDS        ,
+							            	@NewRefund                  	= I.Refund                  ,
+							            	@NewDate_Refund             	= I.Date_Refund             ,
+							            	@NewReturn_Note             	= I.Return_Note             ,
+							            	@NewOld_Price_NDS           	= I.Old_Price_NDS           ,
+							            	@NewJSON_Size_Volume        	= I.JSON_Size_Volume        ,
+							            	@NewNew_Price_NDS           	= I.New_Price_NDS           ,
+							            	@NewNew_Price_no_NDS        	= I.New_Price_no_NDS        ,
+							            	@NewDate_Created                = I.Date_Created            ,
+							            	@NewDescription                 = I.[Description]        	  
+							            FROM inserted I
+										where @ID_entity_D = I.ID_Exemplar;	
+
+								        SELECT 
+							                @OldID_Exemplar             	= D.ID_Exemplar             ,
+							            	@OldId_Item                 	= D.Id_Item                 ,
+							            	@OldID_Currency             	= D.ID_Currency             ,
+							            	@OldID_Storage_location     	= D.ID_Storage_location     ,
+							            	@OldKeySource               	= D.KeySource               ,
+							            	@OldSerial_number           	= D.Serial_number           ,
+							            	@OldID_Condition_of_the_item	= D.ID_Condition_of_the_item,
+							            	@OldOld_Price_no_NDS        	= D.Old_Price_no_NDS        ,
+							            	@OldRefund                  	= D.Refund                  ,
+							            	@OldDate_Refund             	= D.Date_Refund             ,
+							            	@OldReturn_Note             	= D.Return_Note             ,
+							            	@OldOld_Price_NDS           	= D.Old_Price_NDS           ,
+							            	@OldJSON_Size_Volume        	= D.JSON_Size_Volume        ,
+							            	@OldNew_Price_NDS           	= D.New_Price_NDS           ,
+							            	@OldNew_Price_no_NDS        	= D.New_Price_no_NDS        ,
+							            	@OldDate_Created                = D.Date_Created            , 
+							            	@OldDescription                 = D.[Description]        	  					
+							            FROM Deleted D																		 
+										where @ID_entity_D = D.ID_Exemplar;								       
+
+
+                                          IF ISNULL(CAST(@NewId_Item  AS NVARCHAR(50)),'null')  <> ISNULL(CAST(@OldId_Item  AS NVARCHAR(50)),'null')  
+							                 begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Item  = Old ->"' +  ISNULL(CAST(@OldId_Item  AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewId_Item  AS NVARCHAR(50)),'') + '", ';
+							                 end
+                                          
+							              IF ISNULL(CAST(@NewID_Currency  AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Currency  AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency = Old ->"' +  ISNULL(CAST(@OldID_Currency AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Currency AS NVARCHAR(50)),'') + '", ';
+							                 end
+							              
+							              IF ISNULL(CAST(@NewID_Storage_location  AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Storage_location  AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Storage_location = Old ->"' +  ISNULL(CAST(@OldID_Storage_location AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Storage_location AS NVARCHAR(50)),'') + '", ';
+							                 end                  
+							              
+							              IF ISNULL(CAST(@NewKeySource AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldKeySource AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  KeySource = Old ->"' +  ISNULL(CAST(@OldKeySource AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewKeySource AS NVARCHAR(50)),'') + '", ';
+							                 end
+							              
+							              IF ISNULL(@NewSerial_number,'null') <> ISNULL(@OldSerial_number,'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Serial_number = Old ->"' +  ISNULL(@OldSerial_number,'') + ' " NEW -> "' + isnull(@NewSerial_number,'') + '", ';
+							                 end
+							              
+							              IF ISNULL(CAST(@NewID_Condition_of_the_item AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Condition_of_the_item AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Condition_of_the_item = Old ->"' +  ISNULL(CAST(@OldID_Condition_of_the_item AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Condition_of_the_item AS NVARCHAR(50)),'') + '", ';
+							                 end
+							              
+							              IF ISNULL(CAST(@NewOld_Price_no_NDS AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldOld_Price_no_NDS AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Old_Price_no_NDS = Old ->"' +  ISNULL(CAST(@OldOld_Price_no_NDS AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewOld_Price_no_NDS AS NVARCHAR(50)),'') + '", ';
+							                 end
+							              
+                                          IF ISNULL(CAST(@NewRefund AS NVARCHAR(1)),'null') <> ISNULL(CAST(@OldRefund AS NVARCHAR(1)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Refund = Old ->"' +  ISNULL(CAST(@OldRefund AS NVARCHAR(1)),'') + ' " NEW -> "' + isnull(CAST(@NewRefund AS NVARCHAR(1)),'') + '", ';
+							                 end
+							              
+                                          IF ISNULL(CAST(Format(@NewDate_Refund,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Refund,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Refund = Old ->"' +  ISNULL(CAST(Format(@OldDate_Refund,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Refund,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
+							                 end
+                                          
+							              IF ISNULL(@NewReturn_Note,'null') <> ISNULL(@OldReturn_Note,'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Return_Note = Old ->"' +  ISNULL(@OldReturn_Note,'') + ' " NEW -> "' + isnull(@NewReturn_Note,'') + '", ';
+							                 end
+                                          
+							              IF ISNULL(CAST(@NewOld_Price_NDS AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldOld_Price_NDS AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Old_Price_NDS = Old ->"' +  ISNULL(CAST(@OldOld_Price_NDS AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewOld_Price_NDS AS NVARCHAR(50)),'') + '", ';
+							                 end
+							              
+							              IF ISNULL(CAST(@NewJSON_Size_Volume AS NVARCHAR(max)),'null') <> ISNULL(CAST(@OldJSON_Size_Volume AS NVARCHAR(max)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  JSON_Size_Volume = Old ->"' +  ISNULL(CAST(@OldJSON_Size_Volume AS NVARCHAR(max)),'') + ' " NEW -> "' + isnull(CAST(@NewJSON_Size_Volume AS NVARCHAR(max)),'') + '", ';
+							                 end
+                                          
+							              IF ISNULL(CAST(@NewNew_Price_NDS AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldNew_Price_NDS AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  New_Price_NDS = Old ->"' +  ISNULL(CAST(@OldNew_Price_NDS AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewNew_Price_NDS AS NVARCHAR(50)),'') + '", ';
+							                 end
+							              
+							              IF ISNULL(CAST(@NewNew_Price_no_NDS AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldNew_Price_no_NDS AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  New_Price_no_NDS = Old ->"' +  ISNULL(CAST(@OldNew_Price_no_NDS AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewNew_Price_no_NDS AS NVARCHAR(50)),'') + '", ';
+							                 end
+                                          
+							              IF ISNULL(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
+							                 begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
+							                 end
+							              
+                                          IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
+							                 begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> "' + ISNULL(@NewDescription,'') + '",';
+                                             end
+                                          SET @ChangeDescription = 'Updated: ' + ' ID_Exemplar = "' +  isnull(cast(@OldID_Exemplar as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'null')
+                                           --Удаляем запятую на конце
+                                          IF LEN(@ChangeDescription) > 0
+                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                                          INSERT  INTO dbo.Exemplar_Audit
+                                          ( 
+                                           ID_Exemplar,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                          )
+                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									      set @ChangeDescription = '' 
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+                                   					
+                END
+            ELSE
+                BEGIN
+                            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Exemplar,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+		                   DECLARE @OldID_Exemplar_2                bigint         ;
+						   DECLARE @OldId_Item_2                    bigint         ;
+						   DECLARE @OldID_Currency_2                bigint         ;
+						   DECLARE @OldID_Storage_location_2        bigint         ;
+						   DECLARE @OldKeySource_2                  bigint         ;
+						   DECLARE @OldSerial_number_2              nvarchar(500)  ;
+						   DECLARE @OldID_Condition_of_the_item_2   bigint         ;
+						   DECLARE @OldOld_Price_no_NDS_2           float          ;
+						   DECLARE @OldRefund_2                     bit            ;
+						   DECLARE @OldDate_Refund_2                datetime       ;
+						   DECLARE @OldReturn_Note_2                nvarchar(4000) ;
+						   DECLARE @OldOld_Price_NDS_2              float          ;
+						   DECLARE @OldJSON_Size_Volume_2           nvarchar(max)  ;
+						   DECLARE @OldNew_Price_NDS_2              float          ;
+						   DECLARE @OldNew_Price_no_NDS_2           float          ;
+						   DECLARE @OldDate_Created_2               datetime       ;
+						   DECLARE @OldDescription_2                nvarchar(4000) ;    	  	
+
+						   declare cr_2 cursor local fast_forward for
+						   
+						   select 
+						   ID_entity   
+						   ,login_name  
+						   ,ModifiedDate
+						   ,Name_action 
+						   from @t_D_D 
+                           open cr_2       
+						   
+						   fetch next from cr_2 into 
+						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						   while @@FETCH_STATUS  = 0
+						        begin
+							        begin try
+									        set @ChangeDescription = ''
+
+                                            SELECT 
+							                    @OldID_Exemplar_2             	  = D.ID_Exemplar              ,
+							                	@OldId_Item_2                 	  = D.Id_Item                  ,
+							                	@OldID_Currency_2             	  = D.ID_Currency              ,
+							                	@OldID_Storage_location_2     	  = D.ID_Storage_location      ,
+							                	@OldKeySource_2               	  = D.KeySource                ,
+							                	@OldSerial_number_2           	  = D.Serial_number            ,
+							                	@OldID_Condition_of_the_item_2	  = D.ID_Condition_of_the_item ,
+							                	@OldOld_Price_no_NDS_2        	  = D.Old_Price_no_NDS         ,
+							                	@OldRefund_2                  	  = D.Refund                   ,
+							                	@OldDate_Refund_2             	  = D.Date_Refund              ,
+							                	@OldReturn_Note_2             	  = D.Return_Note              ,
+							                	@OldOld_Price_NDS_2           	  = D.Old_Price_NDS            ,
+							                	@OldJSON_Size_Volume_2        	  = D.JSON_Size_Volume         ,
+							                	@OldNew_Price_NDS_2           	  = D.New_Price_NDS            ,
+							                	@OldNew_Price_no_NDS_2        	  = D.New_Price_no_NDS         ,
+							                	@OldDate_Created_2                = D.Date_Created             ,
+							                	@OldDescription_2                 = D.[Description]        
+							                FROM deleted D	
+											where @ID_entity_D_2 = D.ID_Exemplar
+
+                                            SET @ChangeDescription = 'Deleted: '
+							                + 'ID_Exemplar'             +' = "'+  ISNULL(CAST(@OldID_Exemplar_2     AS NVARCHAR(50)),'')+ '", '
+							                + 'Id_Item'                 +' = "'+  ISNULL(CAST(@OldId_Item_2  AS NVARCHAR(50),'')+ '", '
+							                + 'ID_Currency'             +' = "'+  ISNULL(CAST(@OldID_Currency_2 AS NVARCHAR(50)),'') + '", '
+							                + 'ID_Storage_location'     +' = "'+  ISNULL(CAST(@OldID_Storage_location_2 AS NVARCHAR(50)),'') + '", '
+							                + 'KeySource'               +' = "'+  ISNULL(CAST(@OldKeySource_2 AS NVARCHAR(50)),'')+ '", '				
+							                + 'Serial_number'           +' = "'+  ISNULL(@OldSerial_number_2,'')+ '", '
+							                + 'ID_Condition_of_the_item'+' = "'+  ISNULL(CAST(@OldID_Condition_of_the_item_2 AS NVARCHAR(50)),'') + '", '
+							                + 'Old_Price_no_NDS'        +' = "'+  ISNULL(CAST(@OldOld_Price_no_NDS_2 AS NVARCHAR(50)),'')+ '", '
+							                + 'Refund'                  +' = "'+  ISNULL(CAST(@OldRefund_2 AS NVARCHAR(1)),'') + '", '
+							                + 'Date_Refund'             +' = "'+  ISNULL(CAST(Format(@OldDate_Refund_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
+							                + 'Return_Note'             +' = "'+  ISNULL(@OldReturn_Note_2,'')+ '", '
+							                + 'Old_Price_NDS'           +' = "'+  ISNULL(CAST(@OldOld_Price_NDS_2 AS NVARCHAR(50)),'') + '", '
+							                + 'JSON_Size_Volume'        +' = "'+  ISNULL(CAST(@OldJSON_Size_Volume_2 AS NVARCHAR(MAX)),'') + '", '
+							                + 'New_Price_NDS'           +' = "'+  ISNULL(CAST(@OldNew_Price_NDS_2 AS NVARCHAR(50)),'') + '", '
+							                + 'New_Price_no_NDS'        +' = "'+  ISNULL(CAST(@OldNew_Price_no_NDS_2 AS NVARCHAR(50)),'') + '", '
+							                + 'Date_Created'            +' = "'+  ISNULL(CAST(Format(@OldDate_Created_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
+            				                + 'Description'             +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
+
+							               IF LEN(@ChangeDescription) > 0
+                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Exemplar_Audit
+                                           ( 
+                                            ID_Exemplar,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''     
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                 END
+        END
+    ELSE
+        BEGIN
+                   DECLARE @ID_entity_I_2    bigint       ;
+				   DECLARE @login_name_2_I_2 nvarchar(128);
+				   DECLARE @ModifiedDate_I_2 DATETIME     ;
+				   DECLARE @Name_action_I_2  char(1)      ;
+
+				   declare @t_I_I table 
+				   (
+				   Id_Num         bigint        identity(1,1) not null,
+				   ID_entity      bigint        null,
+				   login_name     nvarchar(128) null,
+				   ModifiedDate   DATETIME      null,
+				   Name_action    char(1)       null
+				   );
+
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_Exemplar,@login_name,GETDATE(),'I'  
+					FROM  inserted I  
+
+					declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						   begin
+							      begin try
+								        set @ChangeDescription = ''
+
+                                        SET @ChangeDescription = 'Inserted: '
+                                               + 'ID_Exemplar = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                                        
+										 INSERT  INTO dbo.Exemplar_Audit
+                                         ( 
+                                          ID_Exemplar,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                         )
+                                          SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									     set @ChangeDescription = ''
+                                  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3               
+
+                    END
+
+GO
+
+
 CREATE TABLE Group_Audit
 (
     AuditID                bigint IDENTITY(1,1)  not null,
@@ -8868,7 +5348,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)= '';
 
 
     SELECT  @login_name = login_name
@@ -8948,7 +5428,9 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-							            SELECT 
+								        set @ChangeDescription = ''
+
+								        SELECT 
 	                                        @NewID_Group           = I.ID_Group          ,
 											@NewID_Head_Group      = I.ID_Head_Group     ,
 											@NewID_Vice_Head_Group = I.ID_Vice_Head_Group,
@@ -8973,41 +5455,41 @@ AS
 										where @ID_entity_D = D.ID_Group;
 
 
-                                       IF @NewID_Head_Group <> @OldID_Head_Group
+                                       IF ISNULL(CAST(@NewID_Head_Group AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Head_Group AS NVARCHAR(50)),'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Head_Group = Old ->"' +  ISNULL(CAST(@OldID_Head_Group AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Head_Group AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                       IF @NewID_Vice_Head_Group <> @OldID_Vice_Head_Group 
+                                       IF ISNULL(CAST(@NewID_Vice_Head_Group AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Vice_Head_Group AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Vice_Head_Group = Old ->"' +  ISNULL(CAST(@OldID_Vice_Head_Group AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Vice_Head_Group AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                       IF @NewID_Department <> @OldID_Department 
+                                       IF ISNULL(CAST(@NewID_Department AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Department AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Department = Old ->"' +  ISNULL(CAST(@OldID_Department AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Department AS NVARCHAR(50)),'') + '", ';
 							              end
 
-							           IF @NewName_Group <> @OldName_Group 
+							           IF ISNULL(@NewName_Group,'null') <> ISNULL(@OldName_Group,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Group = Old ->"' +  ISNULL(@OldName_Group,'') + ' " NEW -> " ' + isnull(@NewName_Group,'') + '", ';
 							              end
 
-                                       IF @NewID_Branch <> @OldID_Branch 
+                                       IF ISNULL(CAST(@NewID_Branch AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Branch AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Branch = Old ->"' +  ISNULL(CAST(@OldID_Branch AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Branch AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                       IF @NewDepartment_Code <> @OldDepartment_Code 
+                                       IF ISNULL(CAST(@NewDepartment_Code AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldDepartment_Code AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Department_Code = Old ->"' +  ISNULL(CAST(@OldDepartment_Code AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewDepartment_Code AS NVARCHAR(50)),'') + '", ';
 							              end
           
-                                       IF @NewDescription <> @OldDescription
+                                       IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                           end
-                                       SET @ChangeDescription = 'Updated: ' + ' ID_Group = "' +  isnull(cast(@OldID_Group as nvarchar(20)),'')+ '" ' + @ChangeDescription
+                                       SET @ChangeDescription = 'Updated: ' + ' ID_Group = "' +  isnull(cast(@OldID_Group as nvarchar(20)),'')+ '" ' + isnull(@ChangeDescription,'')
                                         --Удаляем запятую на конце
                                        IF LEN(@ChangeDescription) > 0
                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -9018,7 +5500,7 @@ AS
                                         )
                                        SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null 
+									   set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -9086,6 +5568,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									        set @ChangeDescription = ''
+
                                             SELECT 
                                                 @OldID_Group_2           = D.ID_Group          ,
 										    	@OldID_Head_Group_2      = D.ID_Head_Group     ,
@@ -9117,7 +5601,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -9175,8 +5659,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							           set @ChangeDescription = ''
+
                                        SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Group = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_Group = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                        
 									   INSERT  INTO dbo.Group_Audit
                                        ( 
@@ -9184,7 +5670,7 @@ AS
                                        )
                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null
+									   set @ChangeDescription = ''
            
 		                       end try
 							   begin catch
@@ -9205,6 +5691,2259 @@ AS
 						         end
 						   close cr_3
                            deallocate cr_3
+                    END
+
+GO
+
+
+CREATE TABLE Item_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    Id_Item                bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(Max)         null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Item_Audit ON Item
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                           declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Item,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Item,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                           
+                           DECLARE @OldId_Item                     bigint         	;
+						   DECLARE @OldID_product_measurement      bigint         	;
+						   DECLARE @OldID_TypeItem                 bigint         	;
+						   DECLARE @OldID_Species_Item             bigint           ;
+						   DECLARE @OldId_Item_Status              bigint           ;
+						   DECLARE @OldArticle_number              nvarchar(300)  	;
+						   DECLARE @OldName_Item                   nvarchar(500)  	;
+						   DECLARE @OldImage_Item                  varbinary(max) 	;
+						   DECLARE @OldManufacturer                nvarchar(500)  	;
+						   DECLARE @OldCountry                     nvarchar(200)  	;
+						   DECLARE @OldCity                        nvarchar(200)  	;
+						   DECLARE @OldAdress                      nvarchar(800)  	;
+						   DECLARE @OldMail                        nvarchar(250)  	;
+						   DECLARE @OldPhone                       nvarchar(30)   	;
+						   DECLARE @OldLogo                        varbinary(max) 	;
+						   DECLARE @OldDate_Created                datetime       	;
+						   DECLARE @OldQuantity                    int              ;
+	                       DECLARE @OldDescription                 nvarchar(4000)	;
+
+                           DECLARE @NewId_Item                     bigint         	;
+						   DECLARE @NewID_product_measurement      bigint         	;
+						   DECLARE @NewID_TypeItem                 bigint         	;
+						   DECLARE @NewID_Species_Item             bigint           ;
+						   DECLARE @NewId_Item_Status              bigint           ;
+						   DECLARE @NewArticle_number              nvarchar(300)  	;
+						   DECLARE @NewName_Item                   nvarchar(500)  	;
+						   DECLARE @NewImage_Item                  varbinary(max) 	;
+						   DECLARE @NewManufacturer                nvarchar(500)  	;
+						   DECLARE @NewCountry                     nvarchar(200)  	;
+						   DECLARE @NewCity                        nvarchar(200)  	;
+						   DECLARE @NewAdress                      nvarchar(800)  	;
+						   DECLARE @NewMail                        nvarchar(250)  	;
+						   DECLARE @NewPhone                       nvarchar(30)   	;
+						   DECLARE @NewLogo                        varbinary(max) 	;
+						   DECLARE @NewDate_Created                datetime       	;
+						   DECLARE @NewQuantity                    int              ;
+						   DECLARE @NewDescription                 nvarchar(4000)	;
+						   
+						   declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						         begin
+							          begin try
+						                    set @ChangeDescription = ''
+                         
+							                SELECT  
+							                        @NewId_Item                    =  I.Id_Item                ,
+							                		@NewID_product_measurement	   =  I.ID_product_measurement ,
+							                		@NewID_TypeItem           	   =  I.ID_TypeItem            ,
+													@NewID_Species_Item			   =  I.ID_Species_Item        ,
+													@NewId_Item_Status             =  I.Id_Item_Status 		   ,
+							                		@NewArticle_number        	   =  I.Article_number         ,
+							                		@NewName_Item             	   =  I.Name_Item              ,
+							                		@NewImage_Item            	   =  I.Image_Item             ,
+							                		@NewManufacturer          	   =  I.Manufacturer           ,
+							                		@NewCountry               	   =  I.Country                ,
+							                		@NewCity                  	   =  I.City                   ,
+							                		@NewAdress                	   =  I.Adress                 ,
+							                		@NewMail                  	   =  I.Mail                   ,
+							                		@NewPhone                 	   =  I.Phone                  ,
+							                		@NewLogo                  	   =  I.Logo                   ,
+							                		@NewDate_Created          	   =  I.Date_Created           ,
+							                		@NewQuantity                   =  I.Quantity               ,
+							                		@NewDescription                =  I.[Description]         	
+							                FROM inserted I									 
+											where @ID_entity_D = I.Id_Item;
+							
+							                SELECT 
+							                        @OldId_Item                    =  D.Id_Item                ,
+							                		@OldID_product_measurement	   =  D.ID_product_measurement ,
+							                		@OldID_TypeItem           	   =  D.ID_TypeItem            ,
+													@OldID_Species_Item			   =  D.ID_Species_Item        ,
+													@OldId_Item_Status             =  D.Id_Item_Status 		   ,
+							                		@OldArticle_number        	   =  D.Article_number         ,
+							                		@OldName_Item             	   =  D.Name_Item              ,
+							                		@OldImage_Item            	   =  D.Image_Item             ,
+							                		@OldManufacturer          	   =  D.Manufacturer           ,
+							                		@OldCountry               	   =  D.Country                ,
+							                		@OldCity                  	   =  D.City                   ,
+							                		@OldAdress                	   =  D.Adress                 ,
+							                		@OldMail                  	   =  D.Mail                   ,
+							                		@OldPhone                 	   =  D.Phone                  ,
+							                		@OldLogo                  	   =  D.Logo                   ,
+							                		@OldDate_Created          	   =  D.Date_Created           ,
+							                		@OldQuantity                   =  D.Quantity               ,
+							                		@OldDescription                =  D.[Description]         								
+							                FROM Deleted D
+											where @ID_entity_D = D.Id_Item;
+
+                                            IF ISNULL(CAST(@NewID_product_measurement AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_product_measurement AS NVARCHAR(50)),'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_product_measurement = Old ->"' +  ISNULL(CAST(@OldID_product_measurement AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_product_measurement AS NVARCHAR(50)),'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(CAST(@NewID_TypeItem AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_TypeItem AS NVARCHAR(50)),'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_TypeItem = Old ->"' +  ISNULL(CAST(@OldID_TypeItem AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_TypeItem AS NVARCHAR(50)),'') + '", ';
+							                   end
+
+                                            IF ISNULL(CAST(@NewID_Species_Item AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Species_Item AS NVARCHAR(50)),'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Species_Item = Old ->"' +  ISNULL(CAST(@OldID_Species_Item AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Species_Item AS NVARCHAR(50)),'') + '", ';
+							                   end
+
+											IF ISNULL(CAST(@NewId_Item_Status AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldId_Item_Status AS NVARCHAR(50)),'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Item_Status = Old ->"' +  ISNULL(CAST(@OldId_Item_Status AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewId_Item_Status AS NVARCHAR(50)),'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewArticle_number,'null') <> ISNULL(@OldArticle_number,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Article_number = Old ->"' +  ISNULL(@OldArticle_number,'') + ' " NEW -> " ' + isnull(@NewArticle_number,'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewName_Item,'null') <> ISNULL(@OldName_Item,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Item = Old ->"' +  ISNULL(@OldName_Item,'') + ' " NEW -> " ' + isnull(@NewName_Item,'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewImage_Item,'null') <> ISNULL(@OldImage_Item,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Image_Item = '  +  '"Изображение было изменено или удалено", ';
+							                   end
+					                        
+							                IF ISNULL(@NewManufacturer,'null') <> ISNULL(@OldManufacturer,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Manufacturer = Old ->"' +  ISNULL(@OldManufacturer,'') + ' " NEW -> " ' + isnull(@NewManufacturer,'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewCountry,'null') <> ISNULL(@OldCountry,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Country = Old ->"' +  ISNULL(@OldCountry,'') + ' " NEW -> " ' + isnull(@NewCountry,'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewCity,'null') <> ISNULL(@OldCity,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  City = Old ->"' +  ISNULL(@OldCity,'') + ' " NEW -> " ' + isnull(@NewCity,'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewAdress,'null') <> ISNULL(@OldAdress,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Adress = Old ->"' +  ISNULL(@OldAdress,'') + ' " NEW -> " ' + isnull(@NewAdress,'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewMail,'null') <> ISNULL(@OldMail,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Mail = Old ->"' +  ISNULL(@OldMail,'') + ' " NEW -> " ' + isnull(@NewMail,'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewPhone,'null') <> ISNULL(@OldPhone,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Phone = Old ->"' +  ISNULL(@OldPhone,'') + ' " NEW -> " ' + isnull(@NewPhone,'') + '", ';
+							                   end
+					                        
+							                IF ISNULL(@NewLogo,'null') <> ISNULL(@OldLogo,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Logo = ' +  '"Изображение было изменено или удалено", ';
+							                   end
+							                
+							                IF ISNULL(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
+							                   end
+							                
+					                        IF ISNULL(CAST(@NewQuantity AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldQuantity AS NVARCHAR(50)),'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Quantity = Old ->"' +  ISNULL(CAST(@OldQuantity AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewQuantity AS NVARCHAR(50)),'') + '", ';
+							                   end
+                                            
+							                
+                                            IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            SET @ChangeDescription = 'Updated: ' + ' Id_Item = "' +  isnull(cast(@OldId_Item as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'') + '"'
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                                             INSERT  INTO dbo.Item_Audit
+                                             ( 
+                                              Id_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                             )
+                                               SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                             
+									         set @ChangeDescription = '' 
+ 					              end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+                END
+            ELSE
+                BEGIN
+                            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Item,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ; 
+
+						   DECLARE @OldId_Item_2                       bigint         ;
+						   DECLARE @OldID_product_measurement_2        bigint         ;
+						   DECLARE @OldID_TypeItem_2                   bigint         ;
+						   DECLARE @OldID_Species_Item_2               bigint         ;
+						   DECLARE @OldId_Item_Status_2                bigint         ;
+						   DECLARE @OldArticle_number_2                nvarchar(300)  ;
+						   DECLARE @OldName_Item_2                     nvarchar(500)  ;
+						   DECLARE @OldImage_Item_2                    varbinary(max) ;
+						   DECLARE @OldManufacturer_2                  nvarchar(500)  ;
+						   DECLARE @OldCountry_2                       nvarchar(200)  ;
+						   DECLARE @OldCity_2                          nvarchar(200)  ;
+						   DECLARE @OldAdress_2                        nvarchar(800)  ;
+						   DECLARE @OldMail_2                          nvarchar(250)  ;
+						   DECLARE @OldPhone_2                         nvarchar(30)   ;
+						   DECLARE @OldLogo_2                          varbinary(max) ;
+						   DECLARE @OldDate_Created_2                  datetime       ;
+						   DECLARE @OldQuantity_2                      int            ;
+	                       DECLARE @OldDescription_2                   nvarchar(4000) ;
+
+
+						   declare cr_2 cursor local fast_forward for
+						   
+						   select 
+						   ID_entity   
+						   ,login_name  
+						   ,ModifiedDate
+						   ,Name_action 
+						   from @t_D_D 
+                           open cr_2       
+						   
+						   fetch next from cr_2 into 
+						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						   while @@FETCH_STATUS  = 0
+						        begin
+							         begin try
+									            set @ChangeDescription = ''
+
+                                                SELECT 
+                                                    @OldId_Item_2                   = D.Id_Item               ,
+							                    	@OldID_product_measurement_2    = D.ID_product_measurement,
+							                    	@OldID_TypeItem_2               = D.ID_TypeItem           ,
+													@OldID_Species_Item_2			= D.ID_Species_Item       ,
+													@OldId_Item_Status_2            = D.Id_Item_Status 		  ,
+							                    	@OldArticle_number_2            = D.Article_number        ,
+							                    	@OldName_Item_2                 = D.Name_Item             ,
+							                    	@OldImage_Item_2                = D.Image_Item            ,
+							                    	@OldManufacturer_2              = D.Manufacturer          ,
+							                    	@OldCountry_2                   = D.Country               ,
+							                    	@OldCity_2                      = D.City                  ,
+							                    	@OldAdress_2                    = D.Adress                ,
+							                    	@OldMail_2                      = D.Mail                  ,
+							                    	@OldPhone_2                     = D.Phone                 ,
+							                    	@OldLogo_2                      = D.Logo                  ,
+							                    	@OldDate_Created_2              = D.Date_Created          ,
+							                    	@OldQuantity_2                  = D.Quantity              ,        
+							                    	@OldDescription_2               = D.[Description]        
+							                    FROM deleted D
+												where @ID_entity_D_2 = D.Id_Item;
+
+                                                SET @ChangeDescription = 'Deleted: '
+							                    + 'Id_Item'                +' = "'+  ISNULL(CAST(@OldId_Item_2 AS NVARCHAR(50)),'')+ '", '
+							                    + 'ID_product_measurement' +' = "'+  ISNULL(CAST(@OldID_product_measurement_2 AS NVARCHAR(50)),'')+ '", '
+							                    + 'ID_TypeItem'            +' = "'+  ISNULL(CAST(@OldID_TypeItem_2 AS NVARCHAR(50)),'')+ '", '
+                                                + 'ID_Species_Item'        +' = "'+  ISNULL(CAST(@OldID_Species_Item_2 AS NVARCHAR(50)),'')+ '", '
+												+ 'Id_Item_Status'         +' = "'+  ISNULL(CAST(@OldId_Item_Status_2 AS NVARCHAR(50)),'')+ '", '
+							                    + 'Article_number'         +' = "'+  ISNULL(@OldArticle_number_2,'')+ '", '
+							                    + 'Name_Item'              +' = "'+  ISNULL(@OldName_Item_2,'')+ '", '
+							                    + 'Image_Item'             +' = "'+  ISNULL(cast(@OldImage_Item_2 as varchar(max)),'')+ '", '
+							                    + 'Manufacturer'           +' = "'+  ISNULL(@OldManufacturer_2,'')+ '", '
+							                    + 'Country'                +' = "'+  ISNULL(@OldCountry_2,'')+ '", '
+							                    + 'City'                   +' = "'+  ISNULL(@OldCity_2,'')+ '", '
+							                    + 'Adress'                 +' = "'+  ISNULL(@OldAdress_2,'')+ '", '
+							                    + 'Mail'                   +' = "'+  ISNULL(@OldMail_2,'')+ '", '
+							                    + 'Phone'                  +' = "'+  ISNULL(@OldPhone_2,'')+ '", '
+							                    + 'Logo'                   +' = "'+  ISNULL(cast(@OldLogo_2 as varchar(max)),'')+ '", '
+							                    + 'Date_Created'           +' = "'+  ISNULL(CAST(Format(@OldDate_Created_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'')+ '", '
+							                    + 'Quantity'               +' = "'+  ISNULL(CAST(@OldQuantity_2 AS NVARCHAR(50)),'')+ '", '
+							                    + 'Description'            +' = "'+  ISNULL(@OldDescription_2  ,'')+ '"'
+
+                                                IF LEN(@ChangeDescription) > 0
+                                                      SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                                
+												INSERT  INTO dbo.Item_Audit
+                                                ( 
+                                                 Id_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                                )
+                                                 SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									             set @ChangeDescription = ''
+                                 end try
+								 begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2                        
+                END  
+        END
+    ELSE
+        BEGIN
+		            declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.Id_Item,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+					DECLARE @ID_entity_I_2    bigint       ;
+				    DECLARE @login_name_2_I_2 nvarchar(128);
+				    DECLARE @ModifiedDate_I_2 DATETIME     ;
+				    DECLARE @Name_action_I_2  char(1)      ;
+
+					declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						   begin
+							      begin try
+		                                 set @ChangeDescription = ''
+
+                                         SET @ChangeDescription = 'Inserted: '
+                                                    + 'Id_Item = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                         INSERT  INTO dbo.Item_Audit
+                                         ( 
+                                          Id_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                         )
+                                          SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									     set @ChangeDescription = ''    
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+
+                    END
+
+GO
+
+
+CREATE TABLE Item_status_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    Id_Item_Status         bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)         null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Item_status_Audit ON Item_status
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+				           declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Item_Status,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Item_Status,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                                          	                      
+
+						   DECLARE @OldId_Item_Status          bigint        ;
+						   DECLARE @OldItemStatus              nvarchar(300) ;
+						   DECLARE @OldSysItemStatusName       nvarchar(300) ;
+						   DECLARE @OldDescription      	   nvarchar(4000);
+
+
+						   DECLARE @NewId_Item_Status           bigint        ;
+						   DECLARE @NewItemStatus               nvarchar(300) ;
+						   DECLARE @NewSysItemStatusName        nvarchar(300) ;
+						   DECLARE @NewDescription      	    nvarchar(4000);
+                       
+					       declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								            set @ChangeDescription = ''
+
+							                SELECT 
+                                                  @NewId_Item_Status        = I.Id_Item_Status   ,
+							                	  @NewItemStatus       	    = I.ItemStatus       ,
+							                	  @NewSysItemStatusName  	= I.SysItemStatusName,
+							                	  @NewDescription      	    = I.[Description]      	
+							                FROM inserted I									 
+							                where @ID_entity_D = I.Id_Item_Status;	
+
+							                SELECT 
+                                                  @OldId_Item_Status        = D.Id_Item_Status   ,
+							                	  @OldItemStatus        	= D.ItemStatus       ,
+							                	  @OldSysItemStatusName 	= D.SysItemStatusName,
+							                	  @OldDescription      	    = D.[Description]      	
+							                FROM Deleted D																		 
+											 where @ID_entity_D = D.Id_Item_Status; 
+
+
+                                            IF isnull(@NewItemStatus,'null') <> isnull(@OldItemStatus,'null') 
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ItemStatus = Old ->"' +  ISNULL(@OldItemStatus,'') + ' " NEW -> " ' + isnull(@NewItemStatus,'') + '", ';
+							                   end
+                                            
+							                IF isnull(@NewSysItemStatusName,'null') <> isnull(@OldSysItemStatusName,'null') 
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysItemStatusName = Old ->"' +  ISNULL(@OldSysItemStatusName,'') + ' " NEW -> " ' + isnull(@NewSysItemStatusName,'') + '", ';
+							                   end
+                                                                                                    
+                                            IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            
+                                            SET @ChangeDescription = 'Updated: ' + ' Id_Item_Status = "' +  isnull(cast(@OldId_Item_Status as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'')
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                            
+                                            INSERT  INTO dbo.Item_status_Audit
+                                            ( 
+                                             Id_Item_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = '' 
+
+								   end try
+								   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr                               					
+                END
+            ELSE
+                BEGIN
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Item_Status,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+                           DECLARE @OldId_Item_Status_2          bigint        ;
+						   DECLARE @OldItemStatus_2              nvarchar(300) ;
+						   DECLARE @OldSysItemStatusName_2       nvarchar(300) ;
+						   DECLARE @OldDescription_2      	     nvarchar(4000);
+
+                            declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						        begin
+							       begin try
+								           set @ChangeDescription = ''
+
+							               SELECT 
+										      @OldId_Item_Status_2        = D.Id_Item_Status   ,
+											  @OldItemStatus_2        	  = D.ItemStatus       ,
+											  @OldSysItemStatusName_2 	  = D.SysItemStatusName,
+							               	  @OldDescription_2      	  = D.[Description]      		  
+							               FROM deleted D									 
+										   where @ID_entity_D_2 = D.Id_Item_Status;
+
+                                           SET @ChangeDescription = 'Deleted: '
+							               + 'Id_Item_Status'       +' = "'+  ISNULL(CAST(@OldId_Item_Status_2  AS NVARCHAR(50)),'')+ '", '
+							               + 'ItemStatus'           +' = "'+  ISNULL(@OldItemStatus_2,'')+ '", '
+							               + 'SysItemStatusName'    +' = "'+  ISNULL(@OldSysItemStatusName_2,'')+ '", '
+							               + '[Description]'        +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Item_status_Audit
+                                           ( 
+                                            Id_Item_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+
+                END  
+        END
+    ELSE
+        BEGIN
+		           declare @t_I_I table 
+				   (
+				   Id_Num         bigint        identity(1,1) not null,
+				   ID_entity      bigint        null,
+				   login_name     nvarchar(128) null,
+				   ModifiedDate   DATETIME      null,
+				   Name_action    char(1)       null
+				   );
+
+
+				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+				   SELECT I.Id_Item_Status,@login_name,GETDATE(),'I'  
+				   FROM  inserted I
+
+				   DECLARE @ID_entity_I_2    bigint       ;
+				   DECLARE @login_name_2_I_2 nvarchar(128);
+				   DECLARE @ModifiedDate_I_2 DATETIME     ;
+				   DECLARE @Name_action_I_2  char(1)      ;
+		 
+		           declare cr_3 cursor local fast_forward for
+						   
+				   select 
+				   ID_entity   
+				   ,login_name  
+				   ,ModifiedDate
+				   ,Name_action 
+				   from @t_I_I 
+                      open cr_3       
+				   
+				   fetch next from cr_3 into 
+				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+				   while @@FETCH_STATUS  = 0
+						  begin
+							   begin try
+							         set @ChangeDescription = ''
+
+                                     SET @ChangeDescription = 'Inserted: '
+                                         + 'Id_Item_Status = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                      INSERT  INTO dbo.Item_status_Audit
+                                      ( 
+                                       Id_Item_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                      )
+                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									 set @ChangeDescription = ''              
+
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+                    END
+
+GO
+
+
+CREATE TABLE Order_Assignment_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_OrderAssignment     bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)         null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Orders_Group;
+
+
+go
+
+CREATE TRIGGER trg_Order_Assignment_Audit ON Order_Assignment
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+				           declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_OrderAssignment,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_OrderAssignment,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                                          	                      
+                           DECLARE @OldID_OrderAssignment       bigint        ;
+						   DECLARE @OldOrderAssignmentName      nvarchar(300) ;
+						   DECLARE @OldOrderAssignmentNameEng   nvarchar(300) ;
+						   DECLARE @OldOrderAssignmentSysName   nvarchar(300) ;
+						   DECLARE @OldDescription              nvarchar(4000);
+
+                           DECLARE @NewID_OrderAssignment       bigint        ;
+						   DECLARE @NewOrderAssignmentName      nvarchar(300) ;
+						   DECLARE @NewOrderAssignmentNameEng   nvarchar(300) ;
+						   DECLARE @NewOrderAssignmentSysName   nvarchar(300) ;
+						   DECLARE @NewDescription              nvarchar(4000);
+                       
+					       declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								            set @ChangeDescription = ''
+
+							                SELECT 
+                                                  @NewID_OrderAssignment      	= I.ID_OrderAssignment    ,
+												  @NewOrderAssignmentName    	= I.OrderAssignmentName   ,
+												  @NewOrderAssignmentNameEng 	= I.OrderAssignmentNameEng,
+												  @NewOrderAssignmentSysName 	= I.OrderAssignmentSysName,
+												  @NewDescription               = I.[Description]      	  
+							                FROM inserted I									 
+							                where @ID_entity_D = I.ID_OrderAssignment;	
+
+							                SELECT   
+                                                  @OldID_OrderAssignment      	= D.ID_OrderAssignment    ,
+												  @OldOrderAssignmentName    	= D.OrderAssignmentName   ,
+												  @OldOrderAssignmentNameEng 	= D.OrderAssignmentNameEng,
+												  @OldOrderAssignmentSysName 	= D.OrderAssignmentSysName,
+												  @OldDescription               = D.[Description]        	  
+							                FROM Deleted D																		 
+											 where @ID_entity_D = D.ID_OrderAssignment; 
+
+
+                                            IF ISNULL(@NewOrderAssignmentName,'null') <> ISNULL(@OldOrderAssignmentName,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderAssignmentName = Old ->"' +  ISNULL(@OldOrderAssignmentName,'') + ' " NEW -> " ' + isnull(@NewOrderAssignmentName,'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(@NewOrderAssignmentNameEng,'null') <> ISNULL(@OldOrderAssignmentNameEng,'null') 
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderAssignmentNameEng = Old ->"' +  ISNULL(@OldOrderAssignmentNameEng,'') + ' " NEW -> " ' + isnull(@NewOrderAssignmentNameEng,'') + '", ';
+							                   end
+
+											IF ISNULL(@NewOrderAssignmentSysName,'null') <> ISNULL(@OldOrderAssignmentSysName,'null') 
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderAssignmentSysName = Old ->"' +  ISNULL(@OldOrderAssignmentSysName,'') + ' " NEW -> " ' + isnull(@NewOrderAssignmentSysName,'') + '", ';
+							                   end
+                                                                                                    
+                                            IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            
+                                            SET @ChangeDescription = 'Updated: ' + ' ID_OrderAssignment = "' +  isnull(cast(@OldID_OrderAssignment as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                            
+                                            INSERT  INTO dbo.Order_Assignment_Audit
+                                            ( 
+                                             ID_OrderAssignment,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = '' 
+
+								   end try
+								   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr                               					
+                END
+            ELSE
+                BEGIN
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_OrderAssignment,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+                           DECLARE @OldID_OrderAssignment_2       bigint        ;
+						   DECLARE @OldOrderAssignmentName_2      nvarchar(300) ;
+						   DECLARE @OldOrderAssignmentNameEng_2   nvarchar(300) ;
+						   DECLARE @OldOrderAssignmentSysName_2   nvarchar(300) ;
+						   DECLARE @OldDescription_2              nvarchar(4000);
+
+                            declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						        begin
+							       begin try
+								           set @ChangeDescription = ''
+
+							               SELECT 
+                                                @OldID_OrderAssignment_2     = D.ID_OrderAssignment    ,
+												@OldOrderAssignmentName_2    = D.OrderAssignmentName   ,
+												@OldOrderAssignmentNameEng_2 = D.OrderAssignmentNameEng,
+												@OldOrderAssignmentSysName_2 = D.OrderAssignmentSysName,
+												@OldDescription_2            = D.[Description]        	
+							               FROM deleted D									 
+										   where @ID_entity_D_2 = D.ID_OrderAssignment;
+
+                                           SET @ChangeDescription = 'Deleted: '
+							               + 'ID_OrderAssignment'      +' = "'+  ISNULL(CAST(@OldID_OrderAssignment_2  AS NVARCHAR(50)),'')+ '", '
+										   + 'OrderAssignmentName'     +' = "'+  ISNULL(@OldOrderAssignmentName_2,'')+ '", '
+							               + 'OrderAssignmentNameEng'  +' = "'+  ISNULL(@OldOrderAssignmentNameEng_2,'')+ '", '
+							               + 'OrderAssignmentSysName'  +' = "'+  ISNULL(@OldOrderAssignmentSysName_2,'')+ '", '
+							               + '[Description]'           +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Order_Assignment_Audit
+                                           ( 
+                                            ID_OrderAssignment,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+
+                END  
+        END
+    ELSE
+        BEGIN
+		           declare @t_I_I table 
+				   (
+				   Id_Num         bigint        identity(1,1) not null,
+				   ID_entity      bigint        null,
+				   login_name     nvarchar(128) null,
+				   ModifiedDate   DATETIME      null,
+				   Name_action    char(1)       null
+				   );
+
+
+				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+				   SELECT I.ID_OrderAssignment,@login_name,GETDATE(),'I'  
+				   FROM  inserted I
+
+				   DECLARE @ID_entity_I_2    bigint       ;
+				   DECLARE @login_name_2_I_2 nvarchar(128);
+				   DECLARE @ModifiedDate_I_2 DATETIME     ;
+				   DECLARE @Name_action_I_2  char(1)      ;
+		 
+		           declare cr_3 cursor local fast_forward for
+						   
+				   select 
+				   ID_entity   
+				   ,login_name  
+				   ,ModifiedDate
+				   ,Name_action 
+				   from @t_I_I 
+                      open cr_3       
+				   
+				   fetch next from cr_3 into 
+				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+				   while @@FETCH_STATUS  = 0
+						  begin
+							   begin try
+							         set @ChangeDescription = ''
+
+                                     SET @ChangeDescription = 'Inserted: '
+                                         + 'ID_OrderAssignment = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                      INSERT  INTO dbo.Order_Assignment_Audit
+                                      ( 
+                                       ID_OrderAssignment,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                      )
+                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									 set @ChangeDescription = ''              
+
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+                    END
+
+GO
+
+
+CREATE TABLE Order_category_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_OrderCategory       bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)         null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Orders_Group;
+
+
+go
+
+CREATE TRIGGER trg_Order_category_Audit ON Order_category
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+				           declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_OrderCategory,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_OrderCategory,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                                          	                      
+                           DECLARE @OldID_OrderCategory         bigint         ;
+						   DECLARE @OldOrderCategoryName   	    nvarchar(300)  ;
+						   DECLARE @OldAbbreviation        	    nvarchar(10)   ;
+						   DECLARE @OldOrderCategorySysName	    nvarchar(300)  ;
+						   DECLARE @OldDescription      		nvarchar(4000) ;
+
+                           DECLARE @NewID_OrderCategory         bigint         ;
+						   DECLARE @NewOrderCategoryName   	    nvarchar(300)  ;
+						   DECLARE @NewAbbreviation        	    nvarchar(10)   ;
+						   DECLARE @NewOrderCategorySysName	    nvarchar(300)  ;
+						   DECLARE @NewDescription      		nvarchar(4000) ;
+                       
+					       declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								            set @ChangeDescription = ''
+
+							                SELECT 
+                                                  @NewID_OrderCategory     	= I.ID_OrderCategory    ,
+												  @NewOrderCategoryName   	= I.OrderCategoryName   ,
+												  @NewAbbreviation        	= I.Abbreviation        ,
+												  @NewOrderCategorySysName	= I.OrderCategorySysName,
+												  @NewDescription      	    = I.[Description]      	  
+							                FROM inserted I									 
+							                where @ID_entity_D = I.ID_OrderCategory;
+
+							                SELECT   
+											      @OldID_OrderCategory     	= D.ID_OrderCategory    ,
+												  @OldOrderCategoryName   	= D.OrderCategoryName   ,
+												  @OldAbbreviation        	= D.Abbreviation        ,
+												  @OldOrderCategorySysName	= D.OrderCategorySysName,
+												  @OldDescription      	    = D.[Description]      	  
+							                FROM Deleted D																		 
+											 where @ID_entity_D = D.ID_OrderCategory; 
+
+                                            IF ISNULL(@NewOrderCategoryName,'null') <> ISNULL(@OldOrderCategoryName,'null') 
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderCategoryName = Old ->"' +  ISNULL(@OldOrderCategoryName,'') + ' " NEW -> " ' + isnull(@NewOrderCategoryName,'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(@NewAbbreviation,'null') <> ISNULL(@OldAbbreviation,'null') 
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Abbreviation = Old ->"' +  ISNULL(@OldAbbreviation,'') + ' " NEW -> " ' + isnull(@NewAbbreviation,'') + '", ';
+							                   end
+
+											IF ISNULL(@NewOrderCategorySysName,'null') <> ISNULL(@OldOrderCategorySysName,'null') 
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderCategorySysName = Old ->"' +  ISNULL(@OldOrderCategorySysName,'') + ' " NEW -> " ' + isnull(@NewOrderCategorySysName,'') + '", ';
+							                   end
+                                                                                                    
+                                            IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            
+                                            SET @ChangeDescription = 'Updated: ' + ' ID_OrderCategory = "' +  isnull(cast(@OldID_OrderCategory as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                            
+                                            INSERT  INTO dbo.Order_category_Audit
+                                            ( 
+                                             ID_OrderCategory,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = ''
+
+								   end try
+								   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr                               					
+                END
+            ELSE
+                BEGIN
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_OrderCategory,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+                           DECLARE @OldID_OrderCategory_2           bigint         ;
+						   DECLARE @OldOrderCategoryName_2   	    nvarchar(300)  ;
+						   DECLARE @OldAbbreviation_2        	    nvarchar(10)   ;
+						   DECLARE @OldOrderCategorySysName_2	    nvarchar(300)  ;
+						   DECLARE @OldDescription_2      		    nvarchar(4000) ;
+
+                            declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						        begin
+							       begin try
+								           set @ChangeDescription = ''
+
+							               SELECT 
+                                                 @OldID_OrderCategory_2     	= D.ID_OrderCategory    ,
+												 @OldOrderCategoryName_2   	    = D.OrderCategoryName   ,
+												 @OldAbbreviation_2        	    = D.Abbreviation        ,
+												 @OldOrderCategorySysName_2	    = D.OrderCategorySysName,
+												 @OldDescription_2      	    = D.[Description]      	  
+							               FROM deleted D									 
+										   where @ID_entity_D_2 = D.ID_OrderCategory;
+
+                                           SET @ChangeDescription = 'Deleted: '
+							               + 'ID_OrderCategory'      +' = "'+  ISNULL(CAST(@OldID_OrderCategory_2  AS NVARCHAR(50)),'')+ '", '
+										   + 'OrderCategoryName'     +' = "'+  ISNULL(@OldOrderCategoryName_2,'')+ '", '
+							               + 'Abbreviation'          +' = "'+  ISNULL(@OldAbbreviation_2,'')+ '", '
+							               + 'OrderCategorySysName'  +' = "'+  ISNULL(@OldOrderCategorySysName_2,'')+ '", '
+							               + '[Description]'         +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Order_category_Audit
+                                           ( 
+                                            ID_OrderCategory,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+
+                END  
+        END
+    ELSE
+        BEGIN
+		           declare @t_I_I table 
+				   (
+				   Id_Num         bigint        identity(1,1) not null,
+				   ID_entity      bigint        null,
+				   login_name     nvarchar(128) null,
+				   ModifiedDate   DATETIME      null,
+				   Name_action    char(1)       null
+				   );
+
+
+				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+				   SELECT I.ID_OrderCategory,@login_name,GETDATE(),'I'  
+				   FROM  inserted I
+
+				   DECLARE @ID_entity_I_2    bigint       ;
+				   DECLARE @login_name_2_I_2 nvarchar(128);
+				   DECLARE @ModifiedDate_I_2 DATETIME     ;
+				   DECLARE @Name_action_I_2  char(1)      ;
+		 
+		           declare cr_3 cursor local fast_forward for
+						   
+				   select 
+				   ID_entity   
+				   ,login_name  
+				   ,ModifiedDate
+				   ,Name_action 
+				   from @t_I_I 
+                      open cr_3       
+				   
+				   fetch next from cr_3 into 
+				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+				   while @@FETCH_STATUS  = 0
+						  begin
+							   begin try
+							         set @ChangeDescription = ''
+
+                                     SET @ChangeDescription = 'Inserted: '
+                                         + 'ID_OrderCategory = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                      INSERT  INTO dbo.Order_category_Audit
+                                      ( 
+                                       ID_OrderCategory,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                      )
+                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									 set @ChangeDescription = ''             
+
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+                    END
+
+GO
+
+
+CREATE TABLE Orders_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_Orders              bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Orders_Group;
+
+
+go
+
+CREATE TRIGGER trg_Orders_Audit ON Orders
+AFTER INSERT, UPDATE, DELETE
+
+AS  
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                            declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+                   
+                            insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Orders,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Orders,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+                            
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+	                       
+						   DECLARE @OldID_Orders          bigint                ;
+						   DECLARE @OldID_status          bigint        		;
+						   DECLARE @OldID_TypeOrders      bigint        		;
+						   DECLARE @OldID_Currency        bigint        		;
+						   DECLARE @OldID_OrderAssignment bigint        		;
+						   DECLARE @OldID_OrderCategory	  bigint        		;
+						   DECLARE @OldDate               datetime      		;
+						   DECLARE @OldPayment_Date       datetime      		;
+						   DECLARE @OldAmount             float         		;
+						   DECLARE @OldAmountCurr         float         		;
+						   DECLARE @OldAmountNDS          float         		;
+						   DECLARE @OldAmountCurrNDS      float         		;
+						   DECLARE @OldNum                nvarchar(50)  		;
+						   DECLARE @OldDescription        nvarchar(4000)		;
+
+
+						   DECLARE @NewID_Orders           bigint               ;
+						   DECLARE @NewID_status           bigint        		;
+						   DECLARE @NewID_TypeOrders       bigint        		;
+						   DECLARE @NewID_Currency         bigint        		;
+						   DECLARE @NewID_OrderAssignment  bigint        		;
+						   DECLARE @NewID_OrderCategory	   bigint        		;
+						   DECLARE @NewDate                datetime      		;
+						   DECLARE @NewPayment_Date        datetime      		;
+						   DECLARE @NewAmount              float         		;
+						   DECLARE @NewAmountCurr          float         		;
+						   DECLARE @NewAmountNDS           float         		;
+						   DECLARE @NewAmountCurrNDS       float         		;
+						   DECLARE @NewNum                 nvarchar(50)  		;
+						   DECLARE @NewDescription         nvarchar(4000)		;
+						
+                           declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								        set @ChangeDescription = ''
+
+										SELECT 
+                                               @NewID_Orders           =  I.ID_Orders         ,
+							            	   @NewID_status           =  I.ID_status    	  ,
+							            	   @NewID_TypeOrders       =  I.ID_TypeOrders	  ,
+							            	   @NewID_Currency         =  I.ID_Currency  	  ,
+											   @NewID_OrderAssignment  =  I.ID_OrderAssignment,
+											   @NewID_OrderCategory	   =  I.ID_OrderCategory  ,
+							            	   @NewDate                =  I.Date              ,         --convert(datetime,Date,109),     
+							            	   @NewPayment_Date        =  I.Payment_Date      ,         --convert(datetime,Payment_Date,109),
+							            	   @NewAmount              =  I.Amount       	  ,
+							            	   @NewAmountCurr          =  I.AmountCurr   	  ,
+							            	   @NewAmountNDS           =  I.AmountNDS    	  ,
+							            	   @NewAmountCurrNDS       =  I.AmountCurrNDS	  ,
+							            	   @NewNum                 =  I.Num          	  ,
+							            	   @NewDescription         =  I.[Description]  
+							            FROM inserted I									 
+										where @ID_entity_D = I.ID_Orders
+
+							            SELECT 
+							                   @OldID_Orders           =  D.ID_Orders         ,
+							            	   @OldID_status           =  D.ID_status    	  ,
+							            	   @OldID_TypeOrders       =  D.ID_TypeOrders	  ,
+							            	   @OldID_Currency         =  D.ID_Currency  	  ,
+											   @OldID_OrderAssignment  =  D.ID_OrderAssignment,
+											   @OldID_OrderCategory	   =  D.ID_OrderCategory  ,
+							            	   @OldDate                =  D.Date              ,       --convert(datetime,Date,109),
+							            	   @OldPayment_Date        =  D.Payment_Date      ,       --convert(datetime,Payment_Date,109),
+							            	   @OldAmount              =  D.Amount            ,
+							            	   @OldAmountCurr          =  D.AmountCurr        ,
+							            	   @OldAmountNDS           =  D.AmountNDS         ,
+							            	   @OldAmountCurrNDS       =  D.AmountCurrNDS     ,
+							            	   @OldNum                 =  D.Num               ,
+							            	   @OldDescription         =  D.[Description]  
+							            FROM Deleted D																		 
+										where @ID_entity_D = D.ID_Orders
+
+
+
+                                        IF ISNULL(CAST(@NewID_status AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_status AS NVARCHAR(50)),'null') 
+							               begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_status = Old ->"' +  ISNULL(CAST(@OldID_status AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_status AS NVARCHAR(50)),'') + '", ';
+							               end
+                                        
+							            IF ISNULL(CAST(@NewID_TypeOrders AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_TypeOrders AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_TypeOrders = Old ->"' +  ISNULL(CAST(@OldID_TypeOrders AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_TypeOrders AS NVARCHAR(50)),'') + '", ';
+							               end
+							            IF ISNULL(CAST(@NewID_Currency AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Currency AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency = Old ->"' +  ISNULL(CAST(@OldID_Currency AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Currency AS NVARCHAR(50)),'') + '", ';
+							               end
+                                        IF ISNULL(CAST(@NewID_OrderAssignment AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_OrderAssignment AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_OrderAssignment = Old ->"' +  ISNULL(CAST(@OldID_OrderAssignment AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_OrderAssignment AS NVARCHAR(50)),'') + '", ';
+							               end        
+										IF ISNULL(CAST(@NewID_OrderCategory AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_OrderCategory AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_OrderCategory = Old ->"' +  ISNULL(CAST(@OldID_OrderCategory AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_OrderCategory AS NVARCHAR(50)),'') + '", ';
+							               end		
+
+
+							            IF ISNULL(CAST(Format(@NewDate,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date = Old ->"' +  ISNULL(CAST(Format(@OldDate,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
+							               end
+							            IF ISNULL(CAST(Format(@NewPayment_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldPayment_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Payment_Date = Old ->"' +  ISNULL(CAST(Format(@OldPayment_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewPayment_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
+							               end
+							            IF ISNULL(CAST(@NewAmount AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldAmount AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Amount = Old ->"' +  ISNULL(CAST(@OldAmount AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmount AS NVARCHAR(50)),'') + '", ';
+							               end
+							            
+							            IF ISNULL(CAST(@NewAmountCurr AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldAmountCurr AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  AmountCurr = Old ->"' +  ISNULL(CAST(@OldAmountCurr AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmountCurr AS NVARCHAR(50)),'') + '", ';
+							               end
+
+							            IF ISNULL(CAST(@NewAmountNDS AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldAmountNDS AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  AmountNDS = Old ->"' +  ISNULL(CAST(@OldAmountNDS AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmountNDS AS NVARCHAR(50)),'') + '", ';
+							               end
+                                        
+							            IF ISNULL(CAST(@NewAmountCurrNDS AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldAmountCurrNDS AS NVARCHAR(50)),'null') 
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  AmountCurrNDS = Old ->"' +  ISNULL(CAST(@OldAmountCurrNDS AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewAmountCurrNDS AS NVARCHAR(50)),'') + '", ';
+							               end
+
+							            IF ISNULL(@NewNum,'null') <> ISNULL(@OldNum,'null')
+							               begin
+							                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Num = Old ->"' +  ISNULL(@OldNum,'') + ' " NEW -> " ' + isnull(@NewNum,'') + '", ';
+							               end
+							            
+                                        IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							               begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                           end
+                                        SET @ChangeDescription = 'Updated: ' + ' ID_Orders = "' +  isnull(cast(@OldID_Orders as nvarchar(20)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                         --Удаляем запятую на конце
+                                        IF LEN(@ChangeDescription) > 0
+                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                        
+										INSERT  INTO dbo.Orders_Audit
+                                        ( 
+                                         ID_Orders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                        )
+                                         SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									    set @ChangeDescription = '' 
+                                  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+   					
+                END
+            ELSE
+                BEGIN
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Orders,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+                            DECLARE @OldID_Orders_2           bigint        ;
+							DECLARE @OldID_status_2           bigint        ;
+							DECLARE @OldID_TypeOrders_2       bigint        ;
+							DECLARE @OldID_Currency_2         bigint        ;
+							DECLARE @OldID_OrderAssignment_2  bigint        ;
+						    DECLARE @OldID_OrderCategory_2	  bigint        ;
+							DECLARE @OldDate_2                datetime      ;
+							DECLARE @OldPayment_Date_2        datetime      ;
+							DECLARE @OldAmount_2              float         ;
+							DECLARE @OldAmountCurr_2          float         ;
+							DECLARE @OldAmountNDS_2           float         ;
+							DECLARE @OldAmountCurrNDS_2       float         ;
+							DECLARE @OldNum_2                 nvarchar(50)  ;
+							DECLARE @OldDescription_2         nvarchar(4000);
+
+							declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						   
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						        begin
+							       begin try
+								        set @ChangeDescription = ''
+
+							            SELECT 
+							               @OldID_Orders_2          =  D.ID_Orders         ,
+							               @OldID_status_2     	    =  D.ID_status    	   ,
+							               @OldID_TypeOrders_2 	    =  D.ID_TypeOrders	   ,
+							               @OldID_Currency_2   	    =  D.ID_Currency  	   ,
+										   @OldID_OrderAssignment_2 =  D.ID_OrderAssignment,
+										   @OldID_OrderCategory_2	=  D.ID_OrderCategory  ,
+							               @OldDate_2          	    =  D.Date              ,    --convert(datetime,Date,109),         	 
+							               @OldPayment_Date_2  	    =  D.Payment_Date      ,    --convert(datetime,Payment_Date,109), 	 
+							               @OldAmount_2        	    =  D.Amount       	   ,
+							               @OldAmountCurr_2    	    =  D.AmountCurr   	   ,
+							               @OldAmountNDS_2     	    =  D.AmountNDS    	   ,
+							               @OldAmountCurrNDS_2 	    =  D.AmountCurrNDS	   ,
+							               @OldNum_2           	    =  D.Num          	   ,
+							               @OldDescription_2   	    =  D.[Description]  	 
+							            FROM deleted D									 
+										where @ID_entity_D_2 = D.ID_Orders
+
+                                        SET @ChangeDescription = 'Deleted: '
+							            + 'ID_Orders'           +' = "'+  ISNULL(CAST(@OldID_Orders_2          AS NVARCHAR(50)),'')        + '", '
+							            + 'ID_status'           +' = "'+  ISNULL(CAST(@OldID_status_2          AS NVARCHAR(50)),'') 	   + '", '
+							            + 'ID_TypeOrders'       +' = "'+  ISNULL(CAST(@OldID_TypeOrders_2      AS NVARCHAR(50)),'') 	   + '", '
+							            + 'ID_Currency'         +' = "'+  ISNULL(CAST(@OldID_Currency_2        AS NVARCHAR(50)),'') 	   + '", '
+										+ 'ID_OrderAssignment'  +' = "'+  ISNULL(CAST(@OldID_OrderAssignment_2 AS NVARCHAR(50)),'') 	   + '", '
+							            + 'ID_OrderCategory'    +' = "'+  ISNULL(CAST(@OldID_OrderCategory_2   AS NVARCHAR(50)),'') 	   + '", '
+							            + 'Date'                +' = "'+  ISNULL(CAST(Format(@OldDate_2,'yyyy-MM-dd HH:mm:ss.fff')          AS NVARCHAR(50)),'') 	   + '", '
+							            + 'Payment_Date'        +' = "'+  ISNULL(CAST(Format(@OldPayment_Date_2,'yyyy-MM-dd HH:mm:ss.fff')  AS NVARCHAR(50)),'') 	   + '", '
+							            + 'Amount'              +' = "'+  ISNULL(CAST(@OldAmount_2             AS NVARCHAR(50)),'') 	   + '", '
+							            + 'AmountCurr'          +' = "'+  ISNULL(CAST(@OldAmountCurr_2         AS NVARCHAR(50)),'') 	   + '", '
+							            + 'AmountNDS'           +' = "'+  ISNULL(CAST(@OldAmountNDS_2          AS NVARCHAR(50)),'') 	   + '", '
+							            + 'AmountCurrNDS'       +' = "'+  ISNULL(CAST(@OldAmountCurrNDS_2      AS NVARCHAR(50)),'') 	   + '", '
+							            + 'Num'                 +' = "'+  ISNULL(@OldNum_2          ,'') 	   + '", '
+							            + '[Description]'       +' = "'+  ISNULL(@OldDescription_2  ,'') 	   + '", '
+
+                                        IF LEN(@ChangeDescription) > 0
+                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                         INSERT  INTO dbo.Orders_Audit
+                                         ( 
+                                          ID_Orders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                         )
+                                          SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									     set @ChangeDescription = ''   
+								    
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+                END  
+        END
+    ELSE
+        BEGIN
+		             DECLARE @ID_entity_I_2    bigint       ;
+				     DECLARE @login_name_2_I_2 nvarchar(128);
+				     DECLARE @ModifiedDate_I_2 DATETIME     ;
+				     DECLARE @Name_action_I_2  char(1)      ;
+
+					declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_Orders,@login_name,GETDATE(),'I'  
+					FROM  inserted I    
+
+					declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+						   
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						 begin
+							  begin try
+							        set @ChangeDescription = ''
+
+                                    SET @ChangeDescription = 'Inserted: '
+                                         + 'ID_Orders = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                                     
+                                     INSERT  INTO dbo.Orders_Audit
+                                     ( 
+                                      ID_Orders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                     )
+                                      SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									 set @ChangeDescription = ''
+                               end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+
+                    END
+
+GO
+
+
+CREATE TABLE Orders_status_Audit
+(
+    AuditID              bigint IDENTITY(1,1)  not null,
+    Id_Status            bigint                null,
+ 	ModifiedBy           nVARCHAR(128)         null,
+    ModifiedDate         DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation            CHAR(1)               null,
+    ChangeDescription    nvarchar(max)         null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Orders_Group;
+
+
+go
+
+CREATE TRIGGER trg_Orders_status_Audit ON Orders_status
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                            declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Status,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Status,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+                            
+							
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+							
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+
+
+	                       DECLARE @OldId_Status                  bigint        ;  
+						   DECLARE @OldName                       nvarchar(300) ;
+						   DECLARE @OldSysTypeOrderStatusName     nvarchar(300) ;
+						   DECLARE @OldDescription                nvarchar(4000);
+
+						   DECLARE @NewId_Status                  bigint        ;
+						   DECLARE @NewName                       nvarchar(300) ;
+						   DECLARE @NewSysTypeOrderStatusName     nvarchar(300) ;
+						   DECLARE @NewDescription                nvarchar(4000);
+
+                           declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								        set @ChangeDescription = ''
+
+							            SELECT 
+							                   @NewId_Status              = D.Id_Status              ,    
+							                   @NewName                   = D.Name                   ,
+							                   @NewSysTypeOrderStatusName = D.SysTypeOrderStatusName ,
+							                   @NewDescription            = D.[Description]            
+							            FROM inserted  D
+							            where @ID_entity_D = D.Id_Status
+
+							            SELECT 
+							                   @OldId_Status              = D.Id_Status              ,
+                                               @OldName                   = D.Name                   ,
+                                               @OldSysTypeOrderStatusName = D.SysTypeOrderStatusName ,
+                                               @OldDescription            = D.[Description]           
+                                        FROM deleted D
+										where @ID_entity_D = D.Id_Status
+                         
+                                        IF isnull(@NewName,'null') <> isnull(@OldName,'null') 
+							               begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> " ' + isnull(@NewName,'') + '", ';
+							               end
+
+                                        IF isnull(@NewSysTypeOrderStatusName,'null') <> isnull(@OldSysTypeOrderStatusName,'null')
+							               begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeOrderStatusName = Old ->"' + ISNULL(@OldSysTypeOrderStatusName,'') + ' " NEW -> "' + ISNULL(@NewSysTypeOrderStatusName,'') + '", ';
+							               end
+
+                                        IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							               begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                           end
+
+                                        SET @ChangeDescription = 'Updated: ' + ' Id_Status = "' +  isnull(cast(@OldId_Status as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'')
+                                         --Удаляем запятую на конце
+                                        IF LEN(@ChangeDescription) > 0
+                                             SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                                        INSERT  INTO dbo.Orders_status_Audit
+                                        ( 
+                                         Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                        )
+                                         SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									    set @ChangeDescription = ''
+
+									end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+   					
+                END
+            ELSE
+                BEGIN
+                            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Status,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+
+							DECLARE @OldId_Status_2                  bigint        ;  
+                            DECLARE @OldName_2                       nvarchar(300) ;
+                            DECLARE @OldSysTypeOrderStatusName_2     nvarchar(300) ;
+                            DECLARE @OldDescription_2                nvarchar(4000);
+                            
+                            declare cr_2 cursor local fast_forward for
+						   
+						   select 
+						   ID_entity   
+						   ,login_name  
+						   ,ModifiedDate
+						   ,Name_action 
+						   from @t_D_D 
+                           open cr_2       
+						   
+						   fetch next from cr_2 into 
+						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								           set @ChangeDescription = ''
+
+                                           SELECT 
+							                      @OldId_Status_2               = D.Id_Status              ,
+                                                  @OldName_2                    = D.Name                   ,
+                                                  @OldSysTypeOrderStatusName_2  = D.SysTypeOrderStatusName ,
+                                                  @OldDescription_2             = D.[Description]           
+                                           FROM deleted D
+										   where @ID_entity_D_2 = D.Id_Status
+
+
+                                           SET @ChangeDescription = 'Deleted: '
+                                           + 'Id_Status'              +' = "'+ isnull(CAST(@OldId_Status_2 AS NVARCHAR(50)),'') + '", '
+                                           + 'Name'                   +' = "'+ ISNULL(@OldName_2, '') + '", '
+                                           + 'SysTypeOrderStatusName' +' = "'+ ISNULL(@OldSysTypeOrderStatusName_2, '') + '", '
+                                           + 'Description'            +' = "'+ ISNULL(@OldDescription_2, '') + '" ';
+
+                                           IF LEN(@ChangeDescription) > 0
+                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                           
+									      INSERT  INTO dbo.Orders_status_Audit
+                                          ( 
+                                           Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                          )
+                                          SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									      set @ChangeDescription = ''
+
+								 end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+                         
+                END  
+        END
+    ELSE
+        BEGIN
+                    DECLARE @ID_entity_I_2    bigint       ;
+				    DECLARE @login_name_2_I_2 nvarchar(128);
+				    DECLARE @ModifiedDate_I_2 DATETIME     ;
+				    DECLARE @Name_action_I_2  char(1)      ;
+
+					declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+					
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.Id_Status,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+					declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+						   
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						begin
+							begin try
+							  set @ChangeDescription = ''
+
+							  SET @ChangeDescription = 'Inserted: '
+                                         + 'Id_Country = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+  
+		                      INSERT  INTO dbo.Orders_status_Audit
+                              ( 
+                               Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                              )
+                               SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+							  set @ChangeDescription = ''
+						   end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+                           close cr_3
+                           deallocate cr_3         
+
                     END
 
 GO
@@ -9231,7 +7970,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)='';
 
 
     SELECT  @login_name = login_name
@@ -9314,6 +8053,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								        set @ChangeDescription = ''
+
 							            SELECT 
                                               @NewID_Passport    = I.ID_Passport    ,
 											  @NewNumber_Series  = I.Number_Series  ,
@@ -9339,41 +8080,41 @@ AS
 										where @ID_entity_D = D.ID_Passport;
 
                                        
-							           IF @NewNumber_Series <> @OldNumber_Series 
+							           IF isnull(@NewNumber_Series,'null') <> isnull(@OldNumber_Series,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Number_Series = Old ->"' +  ISNULL(@OldNumber_Series,'') + ' " NEW -> " ' + isnull(@NewNumber_Series,'') + '", ';
 							              end
 
-							           IF @NewDate_Of_Issue <> @OldDate_Of_Issue
+							           IF ISNULL(CAST(Format(@NewDate_Of_Issue,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Of_Issue,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Of_Issue = Old ->"' +  ISNULL(CAST(Format(@OldDate_Of_Issue,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Of_Issue,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
 							              end
 
-							           IF @NewDepartment_Code <> @OldDepartment_Code 
+							           IF ISNULL(@NewDepartment_Code,'null') <> ISNULL(@OldDepartment_Code,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Department_Code = Old ->"' +  ISNULL(@OldDepartment_Code,'') + ' " NEW -> " ' + isnull(@NewDepartment_Code,'') + '", ';
 							              end
 
-							           IF @NewIssued_By_Whom <> @OldIssued_By_Whom 
+							           IF isnull(@NewIssued_By_Whom,'null') <> isnull(@OldIssued_By_Whom,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Issued_By_Whom = Old ->"' +  ISNULL(@OldIssued_By_Whom,'') + ' " NEW -> " ' + isnull(@NewIssued_By_Whom,'') + '", ';
 							              end
 
-							           IF @NewRegistration <> @OldRegistration 
+							           IF isnull(@NewRegistration,'null') <> isnull(@OldRegistration,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Registration = Old ->"' +  ISNULL(@OldRegistration,'') + ' " NEW -> " ' + isnull(@NewRegistration,'') + '", ';
 							              end
 
-							           IF @NewMilitary_Duty <> @OldMilitary_Duty
+							           IF isnull(@NewMilitary_Duty,'null') <> isnull(@OldMilitary_Duty,'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Military_Duty = Old ->"' +  ISNULL(@OldMilitary_Duty,'') + ' " NEW -> " ' + isnull(@NewMilitary_Duty,'') + '", ';
 							              end
      
-                                       IF @NewDescription <> @OldDescription
+                                       IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                           end
-                                       SET @ChangeDescription = 'Updated: ' + ' ID_Passport = "' +  isnull(cast(@OldID_Passport as nvarchar(20)),'')+ '" ' + @ChangeDescription
+                                       SET @ChangeDescription = 'Updated: ' + ' ID_Passport = "' +  isnull(cast(@OldID_Passport as nvarchar(20)),'')+ '" ' + isnull(@ChangeDescription,'')
                                         --Удаляем запятую на конце
                                        IF LEN(@ChangeDescription) > 0
                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -9384,7 +8125,7 @@ AS
                                         )
                                        SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null 
+									   set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -9453,6 +8194,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									        set @ChangeDescription = ''
+
                                             SELECT 
                                               @OldID_Passport_2     = D.ID_Passport    ,
 											  @OldNumber_Series_2   = D.Number_Series  ,
@@ -9484,7 +8227,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -9542,8 +8285,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							           set @ChangeDescription = ''
+
                                        SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Passport = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_Passport = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                        
 									   INSERT  INTO dbo.Passport_Audit
                                        ( 
@@ -9551,7 +8296,7 @@ AS
                                        )
                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null
+									   set @ChangeDescription = ''
            
 		                       end try
 							   begin catch
@@ -9576,7 +8321,6 @@ AS
 
 GO
 
-
 CREATE TABLE Post_Audit
 (
     AuditID                bigint IDENTITY(1,1)  not null,
@@ -9598,7 +8342,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)='';
 
 
     SELECT  @login_name = login_name
@@ -9676,6 +8420,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								        set @ChangeDescription = ''
+
 							            SELECT 
                                               @NewID_Post         = I.ID_Post        , 
 											  @NewName_Post       = I.Name_Post      , 
@@ -9695,32 +8441,33 @@ AS
 											  @OldDescription     = D.[Description]         							
 							            FROM Deleted D
 										where @ID_entity_D = D.ID_Post;
-                                       
-									   IF @NewName_Post <> @OldName_Post 
+
+
+									   IF isnull(@NewName_Post,'null') <> isnull(@OldName_Post,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Post = Old ->"' +  ISNULL(@OldName_Post,'') + ' " NEW -> " ' + isnull(@NewName_Post,'') + '", ';
 							              end
 
-                                       IF @NewID_Department <> @OldID_Department 
+                                       IF ISNULL(CAST(@NewID_Department AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Department AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Department = Old ->"' +  ISNULL(CAST(@OldID_Department AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Department AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                       IF @NewID_Group <> @OldID_Group 
+                                       IF ISNULL(CAST(@NewID_Group AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Group AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Group = Old ->"' +  ISNULL(CAST(@OldID_Group AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Group AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                       IF @NewID_The_Subgroup <> @OldID_The_Subgroup 
+                                       IF ISNULL(CAST(@NewID_The_Subgroup AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_The_Subgroup AS NVARCHAR(50)),'null') 
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_The_Subgroup = Old ->"' +  ISNULL(CAST(@OldID_The_Subgroup AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_The_Subgroup AS NVARCHAR(50)),'') + '", ';
 							              end
 			           
-                                       IF @NewDescription <> @OldDescription
+                                       IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                           end
-                                       SET @ChangeDescription = 'Updated: ' + ' ID_Post = "' +  isnull(cast(@OldID_Post as nvarchar(20)),'')+ '" ' + @ChangeDescription
+                                       SET @ChangeDescription = 'Updated: ' + ' ID_Post = "' +  isnull(cast(@OldID_Post as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
                                         --Удаляем запятую на конце
                                        IF LEN(@ChangeDescription) > 0
                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -9731,7 +8478,7 @@ AS
                                         )
                                        SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null 
+									   set @ChangeDescription = '' 
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -9798,6 +8545,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									        set @ChangeDescription = ''
+
                                             SELECT 
                                                  @OldID_Post_2         = D.ID_Post        ,
 												 @OldName_Post_2       = D.Name_Post      ,
@@ -9825,7 +8574,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -9883,8 +8632,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							           set @ChangeDescription = ''
+
                                        SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Post = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_Post = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                        
 									   INSERT  INTO dbo.Post_Audit
                                        ( 
@@ -9892,10 +8643,336 @@ AS
                                        )
                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null
+									   set @ChangeDescription = ''
            
 		                       end try
 							   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+                    END
+
+GO
+
+
+CREATE TABLE Species_Item_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_Species_Item          bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)         null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Species_Item_Audit ON Species_Item
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+				           declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Species_Item,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Species_Item,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                                          	                      
+
+						   DECLARE @OldID_Species_Item         bigint           ;
+						   DECLARE @OldSpeciesItemName    	   nvarchar(300)  	;
+						   DECLARE @OldSysSpeciesItemName 	   nvarchar(300) 	;
+						   DECLARE @OldDescription      	   nvarchar(4000)	;
+
+
+						   DECLARE @NewID_Species_Item          bigint          ;
+						   DECLARE @NewSpeciesItemName    	 	nvarchar(300)  	;
+						   DECLARE @NewSysSpeciesItemName 		nvarchar(300) 	;
+						   DECLARE @NewDescription      	    nvarchar(4000)	;
+                       
+					       declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								            set @ChangeDescription = ''
+
+							                SELECT 
+                                                  @NewID_Species_Item       = I.ID_Species_Item   ,
+							                	  @NewSpeciesItemName    	= I.SpeciesItemName   ,
+							                	  @NewSysSpeciesItemName 	= I.SysSpeciesItemName,
+							                	  @NewDescription      	    = I.[Description]      	
+							                FROM inserted I									 
+							                where @ID_entity_D = I.ID_Species_Item;	
+
+							                SELECT 
+                                                  @OldID_Species_Item       = D.ID_Species_Item   ,
+							                	  @OldSpeciesItemName    	= D.SpeciesItemName   ,
+							                	  @OldSysSpeciesItemName 	= D.SysSpeciesItemName,
+							                	  @OldDescription      	    = D.[Description]      	
+							                FROM Deleted D																		 
+											 where @ID_entity_D = D.ID_Species_Item; 
+
+
+                                            IF isnull(@NewSpeciesItemName,'null') <> isnull(@OldSpeciesItemName,'null') 
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SpeciesItemName = Old ->"' +  ISNULL(@OldSpeciesItemName,'') + ' " NEW -> " ' + isnull(@NewSpeciesItemName,'') + '", ';
+							                   end
+                                            
+							                IF isnull(@NewSysSpeciesItemName,'null') <> isnull(@OldSysSpeciesItemName,'null') 
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysSpeciesItemName = Old ->"' +  ISNULL(@OldSysSpeciesItemName,'') + ' " NEW -> " ' + isnull(@NewSysSpeciesItemName,'') + '", ';
+							                   end
+                                                                                                    
+                                            IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            
+                                            SET @ChangeDescription = 'Updated: ' + ' ID_Species_Item = "' +  isnull(cast(@OldID_Species_Item as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'')
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                            
+                                            INSERT  INTO dbo.Species_Item_Audit
+                                            ( 
+                                             ID_Species_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = ''
+
+								   end try
+								   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr                               					
+                END
+            ELSE
+                BEGIN
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Species_Item,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+						   DECLARE @OldID_Species_Item_2           bigint           ;
+						   DECLARE @OldSpeciesItemName_2    	   nvarchar(300)  	;
+						   DECLARE @OldSysSpeciesItemName_2 	   nvarchar(300) 	;
+						   DECLARE @OldDescription_2      	       nvarchar(4000)	;
+
+                            declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						        begin
+							       begin try
+								           set @ChangeDescription = ''
+
+							               SELECT 
+										      @OldID_Species_Item_2       = D.ID_Species_Item   ,
+											  @OldSpeciesItemName_2    	  = D.SpeciesItemName   ,
+											  @OldSysSpeciesItemName_2 	  = D.SysSpeciesItemName,
+							               	  @OldDescription_2      	  = D.[Description]      		  
+							               FROM deleted D									 
+										   where @ID_entity_D_2 = D.ID_Species_Item;
+
+                                           SET @ChangeDescription = 'Deleted: '
+							               + 'ID_Species_Item'       +' = "'+  ISNULL(CAST(@OldID_Species_Item_2  AS NVARCHAR(50)),'')+ '", '
+							               + 'SpeciesItemName'       +' = "'+  ISNULL(@OldSpeciesItemName_2,'')+ '", '
+							               + 'SysSpeciesItemName'    +' = "'+  ISNULL(@OldSysSpeciesItemName_2,'')+ '", '
+							               + '[Description]'         +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Species_Item_Audit
+                                           ( 
+                                            ID_Species_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+
+                END  
+        END
+    ELSE
+        BEGIN
+		           declare @t_I_I table 
+				   (
+				   Id_Num         bigint        identity(1,1) not null,
+				   ID_entity      bigint        null,
+				   login_name     nvarchar(128) null,
+				   ModifiedDate   DATETIME      null,
+				   Name_action    char(1)       null
+				   );
+
+
+				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+				   SELECT I.ID_Species_Item,@login_name,GETDATE(),'I'  
+				   FROM  inserted I
+
+				   DECLARE @ID_entity_I_2    bigint       ;
+				   DECLARE @login_name_2_I_2 nvarchar(128);
+				   DECLARE @ModifiedDate_I_2 DATETIME     ;
+				   DECLARE @Name_action_I_2  char(1)      ;
+		 
+		           declare cr_3 cursor local fast_forward for
+						   
+				   select 
+				   ID_entity   
+				   ,login_name  
+				   ,ModifiedDate
+				   ,Name_action 
+				   from @t_I_I 
+                      open cr_3       
+				   
+				   fetch next from cr_3 into 
+				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+				   while @@FETCH_STATUS  = 0
+						  begin
+							   begin try
+							         set @ChangeDescription = ''
+
+                                     SET @ChangeDescription = 'Inserted: '
+                                         + 'ID_Species_Item = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                      INSERT  INTO dbo.Species_Item_Audit
+                                      ( 
+                                       ID_Species_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                      )
+                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									 set @ChangeDescription = ''             
+
+								end try
+								begin catch
 								     if xact_state() in (1, -1)
 									    begin
 									       ROLLBACK TRAN
@@ -9939,7 +9016,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)='';
 
 
     SELECT  @login_name = login_name
@@ -10009,13 +9086,14 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								        set @ChangeDescription = ''
+
 							            SELECT 
                                              @NewID_Status_Employee   = I.ID_Status_Employee  ,
 											 @NewName_Status_Employee = I.Name_Status_Employee,
 											 @NewDescription          = I.[Description]         	
 							            FROM inserted I									 
 							            where @ID_entity_D = I.ID_Status_Employee;
-
 
                                         SELECT 
  							                 @OldID_Status_Employee   = D.ID_Status_Employee  ,
@@ -10025,16 +9103,19 @@ AS
 										where @ID_entity_D = D.ID_Status_Employee;
 
 
-							           IF @NewName_Status_Employee <> @OldName_Status_Employee 
+
+
+							           IF ISNULL(@NewName_Status_Employee,'null') <> ISNULL(@OldName_Status_Employee,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Status_Employee = Old ->"' +  ISNULL(@OldName_Status_Employee,'') + ' " NEW -> " ' + isnull(@NewName_Status_Employee,'') + '", ';
 							              end
                                                                                                
-                                       IF @NewDescription <> @OldDescription
+                                       IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                           end
-                                       SET @ChangeDescription = 'Updated: ' + ' ID_Status_Employee = "' +  isnull(cast(@OldID_Status_Employee as nvarchar(20)),'')+ '" ' + @ChangeDescription
+
+                                       SET @ChangeDescription = 'Updated: ' + ' ID_Status_Employee = "' +  isnull(cast(@OldID_Status_Employee as nvarchar(20)),'')+ '" ' + ISNULL(@ChangeDescription,'')
                                         --Удаляем запятую на конце
                                        IF LEN(@ChangeDescription) > 0
                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -10045,7 +9126,7 @@ AS
                                         )
                                        SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null 
+									   set @ChangeDescription = '' 
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -10108,10 +9189,12 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									        set @ChangeDescription = ''
+
                                             SELECT 
-                                                    @OldID_Status_Employee_2   = ID_Status_Employee  ,
-													@OldName_Status_Employee_2 = Name_Status_Employee,
-													@OldDescription_2          = Description        
+                                                    @OldID_Status_Employee_2   = D.ID_Status_Employee  ,
+													@OldName_Status_Employee_2 = D.Name_Status_Employee,
+													@OldDescription_2          = D.[Description]        
 							                FROM deleted D									 
 											where @ID_entity_D_2 = D.ID_Status_Employee;
 
@@ -10129,7 +9212,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -10187,8 +9270,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							           set @ChangeDescription = ''
+
                                        SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Status_Employee = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_Status_Employee = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                        
 									   INSERT  INTO dbo.Status_Employee_Audit
                                        ( 
@@ -10196,10 +9281,753 @@ AS
                                        )
                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null
+									   set @ChangeDescription = ''
            
 		                       end try
 							   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+                    END
+
+GO
+
+
+CREATE TABLE Storage_location_Audit
+(
+    AuditID                   bigint IDENTITY(1,1)  not null,
+    ID_Storage_location       bigint                null,
+ 	ModifiedBy                nVARCHAR(128)         null,
+    ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation                 CHAR(1)               null,
+    ChangeDescription         nvarchar(max)         null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+go
+
+CREATE TRIGGER trg_Storage_location_Audit ON Storage_location
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                          declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Storage_location,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Storage_location,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                           
+                           DECLARE @OldID_Storage_location        bigint         ;
+						   DECLARE @OldID_Type_Storage_location   bigint         ;
+						   DECLARE @OldId_Status                  bigint         ;
+						   DECLARE @OldId_Country                 bigint         ;
+						   DECLARE @OldKeySource                  bigint         ;
+						   DECLARE @OldName                       nvarchar(400)  ;
+						   DECLARE @OldCity                       nvarchar(200)  ;
+						   DECLARE @OldAdress                     nvarchar(800)  ;
+						   DECLARE @OldMail                       nvarchar(250)  ;
+						   DECLARE @OldPhone                      nvarchar(30)   ;
+						   DECLARE @OldDate_Created               datetime       ;
+						   DECLARE @OldDescription                nvarchar(4000) ;
+
+                           DECLARE @NewID_Storage_location        bigint         ;
+						   DECLARE @NewID_Type_Storage_location   bigint         ;
+						   DECLARE @NewId_Status                  bigint         ;
+						   DECLARE @NewId_Country                 bigint         ;
+						   DECLARE @NewKeySource                  bigint         ;
+						   DECLARE @NewName                       nvarchar(400)  ;
+						   DECLARE @NewCity                       nvarchar(200)  ;
+						   DECLARE @NewAdress                     nvarchar(800)  ;
+						   DECLARE @NewMail                       nvarchar(250)  ;
+						   DECLARE @NewPhone                      nvarchar(30)   ;
+						   DECLARE @NewDate_Created               datetime       ;
+						   DECLARE @NewDescription                nvarchar(4000) ; 
+
+						   declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								        set @ChangeDescription = ''
+
+								        SELECT 
+							                @NewID_Storage_location     	= I.ID_Storage_location     ,
+							            	@NewID_Type_Storage_location	= I.ID_Type_Storage_location,
+											@NewId_Status                   = I.Id_Status               ,
+											@NewId_Country                  = I.Id_Country              ,
+							            	@NewKeySource               	= I.KeySource               ,
+							            	@NewName                    	= I.Name                    ,
+							            	@NewCity                    	= I.City                    ,
+							            	@NewAdress                  	= I.Adress                  ,
+							            	@NewMail                    	= I.Mail                    ,
+							            	@NewPhone                   	= I.Phone                   ,
+							            	@NewDate_Created                = I.Date_Created            ,
+							            	@NewDescription                 = I.[Description]        	  
+							            FROM inserted I									 
+							            where @ID_entity_D = I.ID_Storage_location;
+
+						                SELECT 
+							                @OldID_Storage_location     	= D.ID_Storage_location     ,
+							            	@OldID_Type_Storage_location	= D.ID_Type_Storage_location,
+											@OldId_Status                   = D.Id_Status               ,
+											@OldId_Country                  = D.Id_Country              ,
+							            	@OldKeySource               	= D.KeySource               ,
+							            	@OldName                    	= D.Name                    ,
+							            	@OldCity                    	= D.City                    ,
+							            	@OldAdress                  	= D.Adress                  ,
+							            	@OldMail                    	= D.Mail                    ,
+							            	@OldPhone                   	= D.Phone                   ,
+							            	@OldDate_Created                = D.Date_Created            ,
+							            	@OldDescription                 = D.[Description]        	  					
+							            FROM Deleted D	
+										 where @ID_entity_D = D.ID_Storage_location
+																	 
+
+                                        IF ISNULL(CAST(@NewID_Type_Storage_location  AS NVARCHAR(50)),'null')  <> ISNULL(CAST(@OldID_Type_Storage_location  AS NVARCHAR(50)),'null')  
+							               begin
+                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Type_Storage_location  = Old ->"' +  ISNULL(CAST(@OldID_Type_Storage_location  AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewID_Type_Storage_location  AS NVARCHAR(50)),'') + '", ';
+							               end
+                                        
+										IF ISNULL(CAST(@NewId_Status  AS NVARCHAR(50)),'null')  <> ISNULL(CAST(@OldId_Status  AS NVARCHAR(50)),'null') 
+							               begin
+                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Status  = Old ->"' +  ISNULL(CAST(@OldId_Status  AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewId_Status  AS NVARCHAR(50)),'') + '", ';
+							               end
+
+										IF ISNULL(CAST(@NewId_Country  AS NVARCHAR(50)),'null')  <> ISNULL(CAST(@OldId_Country  AS NVARCHAR(50)),'null') 
+							               begin
+                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Id_Country  = Old ->"' +  ISNULL(CAST(@OldId_Country  AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewId_Country  AS NVARCHAR(50)),'') + '", ';
+							               end
+
+							            IF ISNULL(CAST(@NewKeySource AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldKeySource AS NVARCHAR(50)),'null')
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  KeySource = Old ->"' +  ISNULL(CAST(@OldKeySource AS NVARCHAR(50)),'') + ' " NEW -> "' + isnull(CAST(@NewKeySource AS NVARCHAR(50)),'') + '", ';
+							               end
+							            
+							            IF isnull(@NewName,'null') <> isnull(@OldName,'null')
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name = Old ->"' +  ISNULL(@OldName,'') + ' " NEW -> "' + isnull(@NewName,'') + '", ';
+							               end                  							            
+							            
+							            IF isnull(@NewCity,'null') <> isnull(@OldCity,'null')
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  City = Old ->"' +  ISNULL(@OldCity,'') + ' " NEW -> "' + isnull(@NewCity,'') + '", ';
+							               end
+							            
+							            IF isnull(@NewAdress,'null') <> isnull(@OldAdress,'null')
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Adress = Old ->"' +  ISNULL(@OldAdress,'') + ' " NEW -> "' + isnull(@NewAdress,'') + '", ';
+							               end
+							            
+							            IF isnull(@NewMail,'null') <> isnull(@OldMail,'null')
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Mail = Old ->"' +  ISNULL(@OldMail,'') + ' " NEW -> "' + isnull(@NewMail,'') + '", ';
+							               end
+							            
+                                        IF isnull(@NewPhone,'null') <> isnull(@OldPhone,'null')
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Phone = Old ->"' +  ISNULL(@OldPhone,'') + ' " NEW -> "' + isnull(@NewPhone,'') + '", ';
+							               end
+							            
+                                        IF ISNULL(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Date_Created = Old ->"' +  ISNULL(CAST(Format(@OldDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewDate_Created,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
+							               end
+							            
+                                        IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
+							               begin
+                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> "' + ISNULL(@NewDescription,'') + '",';
+                                           end
+                                        SET @ChangeDescription = 'Updated: ' + ' ID_Storage_location = "' +  isnull(cast(@OldID_Storage_location as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                         --Удаляем запятую на конце
+                                        IF LEN(@ChangeDescription) > 0
+                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                                         INSERT  INTO dbo.Storage_location_Audit
+                                         ( 
+                                          ID_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                         )
+                                           SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									     set @ChangeDescription = '' 
+							 end try
+							 begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+                                        				
+                END
+            ELSE
+                BEGIN
+                           declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Storage_location,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+							DECLARE @OldID_Storage_location_2        bigint         ;
+							DECLARE @OldID_Type_Storage_location_2   bigint         ;
+							DECLARE @OldId_Status_2                  bigint         ;
+							DECLARE @OldId_Country_2                 bigint         ;
+							DECLARE @OldKeySource_2                  bigint         ;
+							DECLARE @OldName_2                       nvarchar(400)  ;
+							DECLARE @OldCity_2                       nvarchar(200)  ;
+							DECLARE @OldAdress_2                     nvarchar(800)  ;
+							DECLARE @OldMail_2                       nvarchar(250)  ;
+							DECLARE @OldPhone_2                      nvarchar(30)   ;
+							DECLARE @OldDate_Created_2               datetime       ;
+							DECLARE @OldDescription_2                nvarchar(4000) ;
+
+							declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						   
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						         begin
+							         begin try  
+									            set @ChangeDescription = ''
+
+                                                SELECT 
+							                        @OldID_Storage_location_2         = D.ID_Storage_location     ,
+							                    	@OldID_Type_Storage_location_2	  = D.ID_Type_Storage_location,
+													@OldId_Status_2                   = D.Id_Status               ,
+													@OldId_Country_2                  = D.Id_Country              ,
+							                    	@OldKeySource_2               	  = D.KeySource               ,
+							                    	@OldName_2                    	  = D.Name                    ,
+							                    	@OldCity_2                    	  = D.City                    ,
+							                    	@OldAdress_2                  	  = D.Adress                  ,
+							                    	@OldMail_2                    	  = D.Mail                    ,
+							                    	@OldPhone_2                   	  = D.Phone                   ,
+							                    	@OldDate_Created_2                = D.Date_Created            ,
+							                    	@OldDescription_2                 = D.[Description]        
+							                    FROM deleted D	
+												where @ID_entity_D_2 = D.ID_Storage_location
+
+                                                SET @ChangeDescription = 'Deleted: '
+							                    + 'ID_Storage_location'      +' = "'+  ISNULL(CAST(@OldID_Storage_location_2     AS NVARCHAR(50)),'')+ '", '
+							                    + 'ID_Type_Storage_location' +' = "'+  ISNULL(CAST(@OldID_Type_Storage_location_2  AS NVARCHAR(50)),'')+ '", '
+												+ 'Id_Status'                +' = "'+  ISNULL(CAST(@OldId_Status_2  AS NVARCHAR(50)),'')+ '", '
+												+ 'Id_Country'               +' = "'+  ISNULL(CAST(@OldId_Country_2  AS NVARCHAR(50)),'')+ '", '
+							                    + 'KeySource'                +' = "'+  ISNULL(CAST(@OldKeySource_2 AS NVARCHAR(50)),'') + '", '
+							                    + 'Name'                     +' = "'+  ISNULL(@OldName_2,'')+ '", '				
+							                    + 'City'                     +' = "'+  ISNULL(@OldCity_2,'') + '", '
+							                    + 'Adress'                   +' = "'+  ISNULL(@OldAdress_2,'')+ '", '
+							                    + 'Mail'                     +' = "'+  ISNULL(@OldMail_2,'') + '", '
+							                    + 'Phone'                    +' = "'+  ISNULL(@OldPhone_2,'')+ '", '
+							                    + 'Date_Created'             +' = "'+  ISNULL(CAST(Format(@OldDate_Created_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
+            				                    + 'Description'              +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
+
+							                    IF LEN(@ChangeDescription) > 0
+                                                        SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                                INSERT  INTO dbo.Storage_location_Audit
+                                                ( 
+                                                 ID_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                                )
+                                                 SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									            set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                END  
+        END
+    ELSE
+        BEGIN
+                    DECLARE @ID_entity_I_2    bigint       ;
+				    DECLARE @login_name_2_I_2 nvarchar(128);
+				    DECLARE @ModifiedDate_I_2 DATETIME     ;
+				    DECLARE @Name_action_I_2  char(1)      ;
+
+					declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_Storage_location,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+
+					declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						  begin
+							     begin try
+								     set @ChangeDescription = ''
+
+                                     SET @ChangeDescription = 'Inserted: '
+                                            + 'ID_Storage_location = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                                      
+                                     INSERT  INTO dbo.Storage_location_Audit
+                                     ( 
+                                      ID_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                     )
+                                      SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									 set @ChangeDescription = ''
+                                
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+
+                    END
+
+GO
+
+
+CREATE TABLE Storage_location_status_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    Id_Status              bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)         null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Storage_location_status_Audit ON Storage_location_status
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+				           declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Status,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Status,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                                          	                      
+                           DECLARE @OldId_Status                  bigint        ;
+						   DECLARE @OldTypeStoragelocationName    nvarchar(300)	;
+						   DECLARE @OldSysTypeStoragelocationName nvarchar(300)	;
+						   DECLARE @OldDescription                nvarchar(4000);
+
+                           DECLARE @NewId_Status                  bigint        ;
+						   DECLARE @NewTypeStoragelocationName    nvarchar(300)	;
+						   DECLARE @NewSysTypeStoragelocationName nvarchar(300)	;
+						   DECLARE @NewDescription                nvarchar(4000);
+                       
+					       declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								            set @ChangeDescription = ''
+
+							                SELECT 
+                                                  @NewId_Status                  = I.Id_Status                 ,
+												  @NewTypeStoragelocationName    = I.TypeStoragelocationName   ,
+												  @NewSysTypeStoragelocationName = I.SysTypeStoragelocationName,            
+												  @NewDescription                = I.[Description]      	  
+							                FROM inserted I									 
+							                where @ID_entity_D = I.Id_Status;	
+
+							                SELECT   
+                                                  @OldId_Status                  = D.Id_Status                 ,
+												  @OldTypeStoragelocationName    = D.TypeStoragelocationName   ,
+												  @OldSysTypeStoragelocationName = D.SysTypeStoragelocationName,            
+												  @OldDescription                = D.[Description]      		  
+							                FROM Deleted D																		 
+											 where @ID_entity_D = D.Id_Status; 
+
+
+                                            IF ISNULL(@NewTypeStoragelocationName,'null') <> ISNULL(@OldTypeStoragelocationName,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeStoragelocationName = Old ->"' +  ISNULL(@OldTypeStoragelocationName,'') + ' " NEW -> " ' + isnull(@NewTypeStoragelocationName,'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(@NewSysTypeStoragelocationName,'null') <> ISNULL(@OldSysTypeStoragelocationName,'null') 
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeStoragelocationName = Old ->"' +  ISNULL(@OldSysTypeStoragelocationName,'') + ' " NEW -> " ' + isnull(@NewSysTypeStoragelocationName,'') + '", ';
+							                   end
+                                                                                                    
+                                            IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            
+                                            SET @ChangeDescription = 'Updated: ' + ' Id_Status = "' +  isnull(cast(@OldId_Status as nvarchar(20)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                            
+                                            INSERT  INTO dbo.Storage_location_status_Audit
+                                            ( 
+                                             Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = '' 
+
+								   end try
+								   begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr                               					
+                END
+            ELSE
+                BEGIN
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_Status,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+                           DECLARE @OldId_Status_2                  bigint        ;
+						   DECLARE @OldTypeStoragelocationName_2    nvarchar(300)	;
+						   DECLARE @OldSysTypeStoragelocationName_2 nvarchar(300)	;
+						   DECLARE @OldDescription_2                nvarchar(4000);
+
+                            declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						        begin
+							       begin try
+								           set @ChangeDescription = ''
+
+							               SELECT 
+                                                  @OldId_Status_2                  = D.Id_Status                 ,
+												  @OldTypeStoragelocationName_2    = D.TypeStoragelocationName   ,
+												  @OldSysTypeStoragelocationName_2 = D.SysTypeStoragelocationName,            
+												  @OldDescription_2                = D.[Description]        	
+							               FROM deleted D									 
+										   where @ID_entity_D_2 = D.Id_Status;
+
+                                           SET @ChangeDescription = 'Deleted: '
+							               + 'Id_Status'                  +' = "'+  ISNULL(CAST(@OldId_Status_2  AS NVARCHAR(50)),'')+ '", '
+							               + 'TypeStoragelocationName'    +' = "'+  ISNULL(@OldTypeStoragelocationName_2,'')+ '", '
+							               + 'SysTypeStoragelocationName' +' = "'+  ISNULL(@OldSysTypeStoragelocationName_2,'')+ '", '
+							               + '[Description]'              +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                           INSERT  INTO dbo.Storage_location_status_Audit
+                                           ( 
+                                            Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+
+                END  
+        END
+    ELSE
+        BEGIN
+		           declare @t_I_I table 
+				   (
+				   Id_Num         bigint        identity(1,1) not null,
+				   ID_entity      bigint        null,
+				   login_name     nvarchar(128) null,
+				   ModifiedDate   DATETIME      null,
+				   Name_action    char(1)       null
+				   );
+
+
+				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+				   SELECT I.Id_Status,@login_name,GETDATE(),'I'  
+				   FROM  inserted I
+
+				   DECLARE @ID_entity_I_2    bigint       ;
+				   DECLARE @login_name_2_I_2 nvarchar(128);
+				   DECLARE @ModifiedDate_I_2 DATETIME     ;
+				   DECLARE @Name_action_I_2  char(1)      ;
+		 
+		           declare cr_3 cursor local fast_forward for
+						   
+				   select 
+				   ID_entity   
+				   ,login_name  
+				   ,ModifiedDate
+				   ,Name_action 
+				   from @t_I_I 
+                      open cr_3       
+				   
+				   fetch next from cr_3 into 
+				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+				   while @@FETCH_STATUS  = 0
+						  begin
+							   begin try
+							         set @ChangeDescription = ''
+
+                                     SET @ChangeDescription = 'Inserted: '
+                                         + 'Id_Status = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                      INSERT  INTO dbo.Storage_location_status_Audit
+                                      ( 
+                                       Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                      )
+                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									 set @ChangeDescription = ''             
+
+								end try
+								begin catch
 								     if xact_state() in (1, -1)
 									    begin
 									       ROLLBACK TRAN
@@ -10243,7 +10071,7 @@ AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)='';
 
 
     SELECT  @login_name = login_name
@@ -10329,6 +10157,8 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
+								        set @ChangeDescription = ''
+
 							            SELECT 
 										     @NewID_The_Subgroup           = I.ID_The_Subgroup          ,
 											 @NewID_Head_The_Subgroup      = I.ID_Head_The_Subgroup     ,
@@ -10340,7 +10170,7 @@ AS
 											 @NewDescription               = I.[Description]            ,
 											 @NewID_Parent_The_Subgroup    = I.ID_Parent_The_Subgroup   
 							            FROM inserted I									 
-							            where @ID_entity_D = I.ID_The_Subgroup;
+							            where @ID_entity_D = I.ID_The_Subgroup;								        
 
                                         SELECT 
 										     @OldID_The_Subgroup           = D.ID_The_Subgroup          ,
@@ -10354,49 +10184,50 @@ AS
 											 @OldID_Parent_The_Subgroup    = D.ID_Parent_The_Subgroup   
 							            FROM Deleted D
 										where @ID_entity_D = D.ID_The_Subgroup;
-                                      
-							           IF @NewID_Head_The_Subgroup <> @OldID_Head_The_Subgroup
+
+                                       
+							           IF ISNULL(CAST(@NewID_Head_The_Subgroup AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Head_The_Subgroup AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Head_The_Subgroup = Old ->"' +  ISNULL(CAST(@OldID_Head_The_Subgroup AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Head_The_Subgroup AS NVARCHAR(50)),'') + '", ';
 							              end
 
-							           IF @NewID_Vice_Head_The_Subgroup <> @OldID_Vice_Head_The_Subgroup
+							           IF ISNULL(CAST(@NewID_Vice_Head_The_Subgroup AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Vice_Head_The_Subgroup AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Vice_Head_The_Subgroup = Old ->"' +  ISNULL(CAST(@OldID_Vice_Head_The_Subgroup AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Vice_Head_The_Subgroup AS NVARCHAR(50)),'') + '", ';
 							              end
 
-							           IF @NewID_Group <> @OldID_Group
+							           IF ISNULL(CAST(@NewID_Group AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Group AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Group = Old ->"' +  ISNULL(CAST(@OldID_Group AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Group AS NVARCHAR(50)),'') + '", ';
 							              end
 
-							           IF @NewName_The_Subgroup <> @OldName_The_Subgroup 
+							           IF ISNULL(@NewName_The_Subgroup,'null') <> ISNULL(@OldName_The_Subgroup,'null') 
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_The_Subgroup = Old ->"' +  ISNULL(@OldName_The_Subgroup,'') + ' " NEW -> " ' + isnull(@NewName_The_Subgroup,'') + '", ';
 							              end
                                         
-									   IF @NewID_Branch <> @OldID_Branch
+									   IF ISNULL(CAST(@NewID_Branch AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Branch AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Branch = Old ->"' +  ISNULL(CAST(@OldID_Branch AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Branch AS NVARCHAR(50)),'') + '", ';
 							              end
 
-									   IF @NewDepartment_Code <> @OldDepartment_Code
+									   IF ISNULL(CAST(@NewDepartment_Code AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldDepartment_Code AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Department_Code = Old ->"' +  ISNULL(CAST(@OldDepartment_Code AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewDepartment_Code AS NVARCHAR(50)),'') + '", ';
 							              end
 
-                                       IF @NewDescription <> @OldDescription
+                                       IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
 							              begin
                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
                                           end
 
-									   IF @NewID_Parent_The_Subgroup <> @OldID_Parent_The_Subgroup
+									   IF ISNULL(CAST(@NewID_Parent_The_Subgroup AS NVARCHAR(50)),'null') <> ISNULL(CAST(@OldID_Parent_The_Subgroup AS NVARCHAR(50)),'null')
 							              begin
 							               SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Parent_The_Subgroup = Old ->"' +  ISNULL(CAST(@OldID_Parent_The_Subgroup AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(@NewID_Parent_The_Subgroup AS NVARCHAR(50)),'') + '", ';
 							              end
 
 
-                                       SET @ChangeDescription = 'Updated: ' + ' ID_The_Subgroup = "' +  isnull(cast(@OldID_The_Subgroup as nvarchar(20)),'')+ '" ' + @ChangeDescription
+                                       SET @ChangeDescription = 'Updated: ' + ' ID_The_Subgroup = "' +  isnull(cast(@OldID_The_Subgroup as nvarchar(20)),'')+ '" ' + isnull(@ChangeDescription,'')
                                         --Удаляем запятую на конце
                                        IF LEN(@ChangeDescription) > 0
                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
@@ -10407,7 +10238,7 @@ AS
                                         )
                                        SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null 
+									   set @ChangeDescription = '' 
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -10477,6 +10308,8 @@ AS
 						    while @@FETCH_STATUS  = 0
 						         begin
 							         begin try
+									        set @ChangeDescription = ''
+
                                             SELECT 
 										              @OldID_The_Subgroup_2           = D.ID_The_Subgroup          ,
 											          @OldID_Head_The_Subgroup_2      = D.ID_Head_The_Subgroup     ,
@@ -10510,7 +10343,7 @@ AS
                                            )
                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									       set @ChangeDescription = ''
 								end try
 								begin catch
 								     if xact_state() in (1, -1)
@@ -10568,8 +10401,10 @@ AS
 					while @@FETCH_STATUS  = 0
 						  begin
 							   begin try
+							           set @ChangeDescription = ''
+
                                        SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_The_Subgroup = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
+                                         + 'ID_The_Subgroup = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                        
 									   INSERT  INTO dbo.The_Subgroup_Audit
                                        ( 
@@ -10577,7 +10412,7 @@ AS
                                        )
                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									   set @ChangeDescription = null
+									   set @ChangeDescription = ''
            
 		                       end try
 							   begin catch
@@ -10603,28 +10438,1706 @@ AS
 GO
 
 
-CREATE TABLE Order_Assignment_Audit
+CREATE TABLE TRANSACTION_Audit
 (
     AuditID                bigint IDENTITY(1,1)  not null,
-    ID_OrderAssignment     bigint                null,
+    ID_Transaction         bigint                null,
  	ModifiedBy             nVARCHAR(128)         null,
     ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
 	Operation              CHAR(1)               null,
     ChangeDescription      nvarchar(max)         null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Transaction_Audit ON [dbo].[Transaction]
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+				            declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Transaction,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Transaction,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+
+
+                           
+                            DECLARE @OldID_Transaction                  bigint          ;
+							DECLARE @OldID_Currency                     bigint       	;
+							DECLARE @OldID_Transaction_status           bigint       	;
+							DECLARE @OldID_Currency_Rate                bigint       	;
+							DECLARE @OldTransaction_Date                datetime     	;
+							DECLARE @OldKeySource                       bigint       	;
+							DECLARE @OldTransaction_name_sender         nvarchar(500)	;
+							DECLARE @OldJSON_Transaction_sender         nvarchar(max)	;
+							DECLARE @OldTransaction_Amount              float        	;
+							DECLARE @OldDescription                     nvarchar(4000)	;
+
+							DECLARE @NewID_Transaction                  bigint          ;
+							DECLARE @NewID_Currency                     bigint       	;
+							DECLARE @NewID_Transaction_status           bigint       	;
+							DECLARE @NewID_Currency_Rate                bigint       	;
+							DECLARE @NewTransaction_Date                datetime     	;
+							DECLARE @NewKeySource                       bigint       	;
+							DECLARE @NewTransaction_name_sender         nvarchar(500)	;
+							DECLARE @NewJSON_Transaction_sender         nvarchar(max)	;
+							DECLARE @NewTransaction_Amount              float        	;
+							DECLARE @NewDescription                     nvarchar(4000)	;
+                            
+
+							declare cr cursor local fast_forward for
+						   
+						    select 
+						    ID_entity    
+						    ,login_name   
+						    ,ModifiedDate 
+						    ,Name_action  
+						    from @t_U_D 
+                            open cr       
+						    
+						    fetch next from cr into 
+						    @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						    while @@FETCH_STATUS  = 0
+						          begin
+							          begin try	
+									        set @ChangeDescription = ''
+
+											SELECT  
+                                                  @NewID_Transaction          = I.ID_Transaction          ,
+							                	  @NewID_Currency             = I.ID_Currency            	,
+							                	  @NewID_Transaction_status   = I.ID_Transaction_status  	,
+							                	  @NewID_Currency_Rate        = I.ID_Currency_Rate       	,
+							                	  @NewTransaction_Date        = I.Transaction_Date       	,
+							                	  @NewKeySource               = I.KeySource              	,
+							                	  @NewTransaction_name_sender = I.Transaction_name_sender	,
+							                	  @NewJSON_Transaction_sender = I.JSON_Transaction_sender	,
+							                	  @NewTransaction_Amount      = I.Transaction_Amount     	,
+							                	  @NewDescription             = I.[Description]                      
+							                FROM inserted I
+											where @ID_entity_D = I.ID_Transaction;									  
+							                
+							                SELECT  
+                                                  @OldID_Transaction          = D.ID_Transaction          ,
+							                	  @OldID_Currency             = D.ID_Currency            	,
+							                	  @OldID_Transaction_status   = D.ID_Transaction_status  	,
+							                	  @OldID_Currency_Rate        = D.ID_Currency_Rate       	,
+							                	  @OldTransaction_Date        = D.Transaction_Date       	,
+							                	  @OldKeySource               = D.KeySource              	,
+							                	  @OldTransaction_name_sender = D.Transaction_name_sender	,
+							                	  @OldJSON_Transaction_sender = D.JSON_Transaction_sender	,
+							                	  @OldTransaction_Amount      = D.Transaction_Amount     	,
+							                	  @OldDescription             = D.[Description]                           
+							                FROM Deleted D
+											where @ID_entity_D = D.ID_Transaction; 	
+
+
+                                            IF ISNULL(cast(@NewID_Currency as nvarchar(50)),'null') <> ISNULL(cast(@OldID_Currency as nvarchar(50)),'null') 
+							                   begin
+                                                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency = Old ->"' +  ISNULL(cast(@OldID_Currency as nvarchar(50)),'') + ' " NEW -> " ' + isnull(cast(@NewID_Currency as nvarchar(50)),'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(cast(@NewID_Transaction_status as nvarchar(50)),'null') <> ISNULL(cast(@OldID_Transaction_status as nvarchar(50)),'null') 
+							                   begin
+                                                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Transaction_status = Old ->"' +  ISNULL(cast(@OldID_Transaction_status as nvarchar(50)),'') + ' " NEW -> " ' + isnull(cast(@NewID_Transaction_status as nvarchar(50)),'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(cast(@NewID_Currency_Rate as nvarchar(50)),'null') <> ISNULL(cast(@OldID_Currency_Rate as nvarchar(50)),'null') 
+							                   begin
+                                                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ID_Currency_Rate = Old ->"' +  ISNULL(cast(@OldID_Currency_Rate as nvarchar(50)),'') + ' " NEW -> " ' + isnull(cast(@NewID_Currency_Rate as nvarchar(50)),'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(CAST(Format(@NewTransaction_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null') <> ISNULL(CAST(Format(@OldTransaction_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'null')
+							                   begin
+							                      SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Transaction_Date = Old ->"' +  ISNULL(CAST(Format(@OldTransaction_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + ' " NEW -> " ' + isnull(CAST(Format(@NewTransaction_Date,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", ';
+							                   end
+							                
+							                
+							                IF ISNULL(cast(@NewKeySource as nvarchar(100)),'null') <> ISNULL(cast(@OldKeySource as nvarchar(100)),'null')
+							                   begin
+							                      SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  KeySource = Old ->"' +  ISNULL(cast(@OldKeySource as nvarchar(100)),'') + ' " NEW -> " ' + isnull(cast(@NewKeySource as nvarchar(100)),'') + '", ';
+							                   end
+							                
+							                IF ISNULL(@NewTransaction_name_sender,'null') <> ISNULL(@OldTransaction_name_sender,'null')
+							                   begin
+							                      SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Transaction_name_sender = Old ->"' +  ISNULL(@OldTransaction_name_sender,'') + ' " NEW -> " ' + isnull(@NewTransaction_name_sender,'') + '", ';
+							                   end  																	   			
+							                
+							                IF ISNULL(cast(@NewJSON_Transaction_sender as nvarchar(max)),'null') <> ISNULL(cast(@OldJSON_Transaction_sender as nvarchar(max)),'null')
+							                   begin
+							                      SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  JSON_Transaction_sender = Old ->"' +  ISNULL(cast(@OldJSON_Transaction_sender as nvarchar(max)),'') + ' " NEW -> " ' + isnull(cast(@NewJSON_Transaction_sender as nvarchar(max)),'') + '", ';
+							                   end
+							                
+                                            IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							                   begin
+                                                  SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            SET @ChangeDescription = 'Updated: ' + ' ID_Transaction = "' +  isnull(cast(@OldID_Transaction as nvarchar(20)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                                            INSERT  INTO dbo.TRANSACTION_Audit
+                                            ( 
+                                             ID_Transaction,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                              SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = '' 
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+  					
+                END
+            ELSE
+                BEGIN
+				           declare @t_D_D table 
+						   (
+						   Id_Num         bigint        identity(1,1) not null,
+						   ID_entity      bigint        null,
+						   login_name     nvarchar(128) null,
+						   ModifiedDate   DATETIME      null,
+						   Name_action    char(1)       null
+						   );
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Transaction,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+
+                            DECLARE @OldID_Transaction_2                  bigint          ;
+							DECLARE @OldID_Currency_2                     bigint       	  ;
+							DECLARE @OldID_Transaction_status_2           bigint       	  ;
+							DECLARE @OldID_Currency_Rate_2                bigint       	  ;
+							DECLARE @OldTransaction_Date_2                datetime     	  ;
+							DECLARE @OldKeySource_2                       bigint       	  ;
+							DECLARE @OldTransaction_name_sender_2         nvarchar(500)	  ;
+							DECLARE @OldJSON_Transaction_sender_2         nvarchar(max)	  ;
+							DECLARE @OldTransaction_Amount_2              float        	  ;
+							DECLARE @OldDescription_2                     nvarchar(4000)  ;
+                            
+							declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						         begin
+							         begin try
+									        set @ChangeDescription = ''
+
+                                            SELECT
+                                                  @OldID_Transaction_2          = D.ID_Transaction          ,
+							                	  @OldID_Currency_2             = D.ID_Currency             ,
+							                	  @OldID_Transaction_status_2   = D.ID_Transaction_status   ,
+							                	  @OldID_Currency_Rate_2        = D.ID_Currency_Rate        ,
+							                	  @OldTransaction_Date_2        = D.Transaction_Date        ,
+							                	  @OldKeySource_2               = D.KeySource               ,
+							                	  @OldTransaction_name_sender_2 = D.Transaction_name_sender ,
+							                	  @OldJSON_Transaction_sender_2 = D.JSON_Transaction_sender ,
+							                	  @OldTransaction_Amount_2      = D.Transaction_Amount      ,
+							                	  @OldDescription_2             = D.[Description]           
+							                FROM deleted D	
+											where @ID_entity_D_2 = D.ID_Transaction;
+
+                                            SET @ChangeDescription = 'Deleted: '
+							                + 'ID_Transaction'           +' = "'+  ISNULL(CAST(@OldID_Transaction_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'ID_Currency'              +' = "'+  ISNULL(CAST(@OldID_Currency_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'ID_Transaction_status'    +' = "'+  ISNULL(CAST(@OldID_Transaction_status_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'ID_Currency_Rate'         +' = "'+  ISNULL(CAST(@OldID_Currency_Rate_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'Transaction_Date'         +' = "'+  ISNULL(CAST(Format(@OldTransaction_Date_2,'yyyy-MM-dd HH:mm:ss.fff') AS NVARCHAR(50)),'') + '", '
+							                + 'KeySource'                +' = "'+  ISNULL(cast(@OldKeySource_2 as nvarchar(100)),'') + '", ' 
+							                + 'Transaction_name_sender'  +' = "'+  ISNULL(@OldTransaction_name_sender_2,'')+ '", ' 
+							                + 'JSON_Currency_Rate_Data'  +' = "'+  ISNULL(@OldJSON_Transaction_sender_2,'')+ '", '
+							                + 'Transaction_Amount      ' +' = "'+  ISNULL(cast(@OldTransaction_Amount_2 as nvarchar(50)),'')+ '", '		
+							                + 'Description'              +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
+
+                                           IF LEN(@ChangeDescription) > 0
+                                                   SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                            
+										   INSERT  INTO dbo.TRANSACTION_Audit
+                                           ( 
+                                            ID_Transaction,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                END   
+        END
+    ELSE
+        BEGIN
+		            declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+                    insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_Transaction,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+					DECLARE @ID_entity_I_2    bigint       ;
+					DECLARE @login_name_2_I_2 nvarchar(128);
+					DECLARE @ModifiedDate_I_2 DATETIME     ;
+					DECLARE @Name_action_I_2  char(1)      ;
+
+					declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						    begin
+							      begin try
+								       set @ChangeDescription = ''
+
+                                       SET @ChangeDescription = 'Inserted: '
+                                            + 'ID_Transaction = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                                        
+									   INSERT  INTO dbo.TRANSACTION_Audit
+                                       ( 
+                                        ID_Transaction,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                       )
+                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									    set @ChangeDescription = ''
+                                 end try
+								 begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3          
+
+                    END
+
+GO
+
+
+CREATE TABLE Transaction_status_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_Transaction_status  bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+ --   PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Transaction_status_Audit ON Transaction_status
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+				            declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Transaction_status,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Transaction_status,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+
+                           
+	                        DECLARE @OldID_Transaction_status      bigint           ;
+						    DECLARE @OldTypeTransactionName        nvarchar(300)	;
+						    DECLARE @OldSysTypeTransactionName     nvarchar(300)	;
+	                        DECLARE @OldDescription                nvarchar(4000)	;
+
+		                    DECLARE @NewID_Transaction_status      bigint           ;
+							DECLARE @NewTypeTransactionName        nvarchar(300)	;
+							DECLARE @NewSysTypeTransactionName     nvarchar(300)	;
+							DECLARE @NewDescription                nvarchar(4000)	;
+
+							declare cr cursor local fast_forward for
+						   
+						    select 
+						    ID_entity    
+						    ,login_name   
+						    ,ModifiedDate 
+						    ,Name_action  
+						    from @t_U_D 
+                            open cr       
+						    
+						    fetch next from cr into 
+						    @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						    while @@FETCH_STATUS  = 0
+						         begin
+							         begin try
+									        set @ChangeDescription = ''
+
+							                SELECT  
+							                     @NewID_Transaction_status    = I.ID_Transaction_status , 
+							                	 @NewTypeTransactionName      = I.TypeTransactionName   ,
+							                	 @NewSysTypeTransactionName   = I.SysTypeTransactionName,
+							                	 @NewDescription              = I.[Description]           
+							                FROM inserted I									 
+							                where @ID_entity_D = I.ID_Transaction_status;
+
+                                            SELECT  
+							                     @OldID_Transaction_status    = D.ID_Transaction_status ,
+							                	 @OldTypeTransactionName      = D.TypeTransactionName   ,
+							                	 @OldSysTypeTransactionName   = D.SysTypeTransactionName,
+							                	 @OldDescription              = D.[Description]          
+							                FROM Deleted D
+											where @ID_entity_D = D.ID_Transaction_status;
+
+
+                                            IF ISNULL(@NewTypeTransactionName,'null') <> ISNULL(@OldTypeTransactionName,'null') 
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeTransactionName = Old ->"' +  ISNULL(@OldTypeTransactionName,'') + ' " NEW -> " ' + isnull(@NewTypeTransactionName,'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(@NewSysTypeTransactionName,'null') <> ISNULL(@OldSysTypeTransactionName,'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeTransactionName = Old ->"' +  ISNULL(@OldTypeTransactionName,'') + ' " NEW -> " ' + isnull(@NewTypeTransactionName,'') + '", ';
+							                   end
+							                
+                                            IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            SET @ChangeDescription = 'Updated: ' + ' ID_Transaction_status = "' +  isnull(cast(@OldID_Transaction_status as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                            
+											INSERT  INTO dbo.Transaction_status_Audit
+                                            ( 
+                                             ID_Transaction_status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                              SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = '' 
+                            		end try
+								    begin catch
+								       if xact_state() in (1, -1)
+									        begin
+									           ROLLBACK TRAN
+									        end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+                END
+            ELSE
+                BEGIN
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Transaction_status,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+							DECLARE @OldID_Transaction_status_2      bigint         ;
+							DECLARE @OldTypeTransactionName_2        nvarchar(300)	;
+							DECLARE @OldSysTypeTransactionName_2     nvarchar(300)	;
+							DECLARE @OldDescription_2                nvarchar(4000)	;
+
+
+							declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						    
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						         begin
+							         begin try
+									        set @ChangeDescription = ''
+
+                                            SELECT 
+							                    @OldID_Transaction_status_2   = D.ID_Transaction_status  ,
+							                	@OldTypeTransactionName_2     = D.TypeTransactionName    ,
+							                	@OldSysTypeTransactionName_2  = D.SysTypeTransactionName ,
+							                	@OldDescription_2             = D.[Description]        
+							                FROM deleted D	
+											where @ID_entity_D_2 = D.ID_Transaction_status 
+
+                                            SET @ChangeDescription = 'Deleted: '
+							                + 'ID_Transaction_status'    +' = "'+  ISNULL(CAST(@OldID_Transaction_status_2 AS NVARCHAR(50)),'')     + '", '
+							                + 'TypeTransactionName'      +' = "'+  ISNULL(@OldTypeTransactionName_2,'')+ '", '				
+							                + 'SysTypeTransactionName'   +' = "'+  ISNULL(@OldSysTypeTransactionName_2,'')+ '", '
+							                + 'Description'              +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
+						  
+						                   IF LEN(@ChangeDescription) > 0
+                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                           
+										   INSERT  INTO dbo.Transaction_status_Audit
+                                           ( 
+                                            ID_Transaction_status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                           )
+                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									       set @ChangeDescription = ''
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                END  
+        END
+    ELSE
+        BEGIN
+
+                   	declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_Transaction_status,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+					DECLARE @ID_entity_I_2    bigint       ;
+					DECLARE @login_name_2_I_2 nvarchar(128);
+					DECLARE @ModifiedDate_I_2 DATETIME     ;
+					DECLARE @Name_action_I_2  char(1)      ;
+
+					declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						   begin
+							      begin try
+								            set @ChangeDescription = ''
+
+                                            SET @ChangeDescription = 'Inserted: '
+                                                    + 'ID_Transaction_status = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                            INSERT  INTO dbo.Transaction_status_Audit
+                                            ( 
+                                             ID_Transaction_status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                             SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = ''
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+
+                    END
+
+GO
+
+
+CREATE TABLE Type_of_product_measurement_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_product_measurement bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Type_of_product_measurement_Audit ON Type_of_product_measurement
+AFTER INSERT, UPDATE, DELETE
+
+AS  
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                           declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_product_measurement,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_product_measurement,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                           
+						   DECLARE @OldID_product_measurement      bigint        ; 
+						   DECLARE @OldProduct_measurement_Name    nvarchar(300) ;
+						   DECLARE @OldSysProductMeasurementName   nvarchar(300) ;
+	                       DECLARE @OldDescription                 nvarchar(4000);
+
+                           DECLARE @NewID_product_measurement      bigint        ;
+						   DECLARE @NewProduct_measurement_Name    nvarchar(300) ;
+						   DECLARE @NewSysProductMeasurementName   nvarchar(300) ;
+						   DECLARE @NewDescription                 nvarchar(4000);
+
+						   declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							        begin try
+									        set @ChangeDescription = ''
+
+							                SELECT 
+							                        @NewID_product_measurement     =  I.ID_product_measurement   ,
+							                		@NewProduct_measurement_Name   =  I.Product_measurement_Name ,
+							                		@NewSysProductMeasurementName  =  I.SysProductMeasurementName,
+							                		@NewDescription                =  I.[Description]         	
+							                FROM inserted I
+											where @ID_entity_D = I.ID_product_measurement
+
+                                            SELECT 
+                                                    @OldID_product_measurement     =  D.ID_product_measurement   ,
+							                		@OldProduct_measurement_Name   =  D.Product_measurement_Name ,
+							                		@OldSysProductMeasurementName  =  D.SysProductMeasurementName,
+							                		@OldDescription                =  D.[Description]         								
+							                FROM Deleted D
+											where @ID_entity_D = D.ID_product_measurement;
+
+;
+							                																		 
+                                            IF ISNULL(CAST(@NewProduct_measurement_Name AS NVARCHAR(300)),'null') <> ISNULL(CAST(@OldProduct_measurement_Name AS NVARCHAR(300)),'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Product_measurement_Name = Old ->"' +  ISNULL(CAST(@OldProduct_measurement_Name AS NVARCHAR(300)),'') + ' " NEW -> " ' + isnull(CAST(@NewProduct_measurement_Name AS NVARCHAR(300)),'') + '", ';
+							                   end
+                                            
+							                IF ISNULL(CAST(@NewSysProductMeasurementName AS NVARCHAR(300)),'null') <> ISNULL(CAST(@OldSysProductMeasurementName AS NVARCHAR(300)),'null')
+							                   begin
+							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysProductMeasurementName = Old ->"' +  ISNULL(CAST(@OldSysProductMeasurementName AS NVARCHAR(300)),'') + ' " NEW -> " ' + isnull(CAST(@NewSysProductMeasurementName AS NVARCHAR(300)),'') + '", ';
+							                   end
+							                
+                                            IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							                   begin
+                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                               end
+                                            SET @ChangeDescription = 'Updated: ' + ' ID_product_measurement = "' +  isnull(cast(@OldID_product_measurement as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'') + '"'
+                                             --Удаляем запятую на конце
+                                            IF LEN(@ChangeDescription) > 0
+                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                                            INSERT  INTO dbo.Type_of_product_measurement_Audit
+                                            ( 
+                                             ID_product_measurement,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                              SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = ''
+								 end try
+								 begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+                END
+            ELSE
+                BEGIN
+				           declare @t_D_D table 
+						   (
+						   Id_Num         bigint        identity(1,1) not null,
+						   ID_entity      bigint        null,
+						   login_name     nvarchar(128) null,
+						   ModifiedDate   DATETIME      null,
+						   Name_action    char(1)       null
+						   );
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_product_measurement,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+						   DECLARE @OldID_product_measurement_2      bigint         ; 
+						   DECLARE @OldProduct_measurement_Name_2    nvarchar(300)	;
+						   DECLARE @OldSysProductMeasurementName_2   nvarchar(300)	;
+	                       DECLARE @OldDescription_2                 nvarchar(4000)	;
+                           
+						   declare cr_2 cursor local fast_forward for
+						   
+						   select 
+						   ID_entity   
+						   ,login_name  
+						   ,ModifiedDate
+						   ,Name_action 
+						   from @t_D_D 
+                           open cr_2       
+						   
+						   fetch next from cr_2 into 
+						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								        set @ChangeDescription = ''
+
+                                        SELECT 
+							                @OldID_product_measurement_2   	= D.ID_product_measurement    ,
+							            	@OldProduct_measurement_Name_2 	= D.Product_measurement_Name  ,
+							            	@OldSysProductMeasurementName_2 = D.SysProductMeasurementName ,            
+							            	@OldDescription_2               = D.[Description]        
+							            FROM deleted D
+										where @ID_entity_D_2 = D.ID_product_measurement;
+
+                                        SET @ChangeDescription = 'Deleted: '
+							            + 'ID_product_measurement'     +' = "'+  ISNULL(CAST(@OldID_product_measurement_2 AS NVARCHAR(50)),'')+ '", '
+							            + 'Product_measurement_Name'   +' = "'+  ISNULL(@OldProduct_measurement_Name_2,'')+ '", '
+							            + 'SysProductMeasurementName'  +' = "'+  ISNULL(@OldSysProductMeasurementName_2,'')+ '", '
+							            + 'Description'                +' = "'+  ISNULL(@OldDescription_2  ,'')+ '"'
+
+                                        IF LEN(@ChangeDescription) > 0
+                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                        INSERT  INTO dbo.Type_of_product_measurement_Audit
+                                        ( 
+                                         ID_product_measurement,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                        )
+                                         SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									    set @ChangeDescription = '' 
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                END  
+        END
+    ELSE
+        BEGIN
+                    declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_product_measurement,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+					DECLARE @ID_entity_I_2    bigint       ;
+				    DECLARE @login_name_2_I_2 nvarchar(128);
+				    DECLARE @ModifiedDate_I_2 DATETIME     ;
+				    DECLARE @Name_action_I_2  char(1)      ;
+
+					declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						   begin
+							      begin try
+								          set @ChangeDescription = ''
+
+                                          SET @ChangeDescription = 'Inserted: '
+                                                  + 'ID_product_measurement = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                    
+                                          INSERT  INTO dbo.Type_of_product_measurement_Audit
+                                          ( 
+                                           ID_product_measurement,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                          )
+                                           SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									      set @ChangeDescription = ''     
+								  
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+
+                    END
+
+GO
+
+
+CREATE TABLE Type_Storage_location_Audit
+(
+    AuditID                   bigint IDENTITY(1,1)  not null,
+    ID_Type_Storage_location  bigint                null,
+ 	ModifiedBy                nVARCHAR(128)         null,
+    ModifiedDate              DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation                 CHAR(1)               null,
+    ChangeDescription         nvarchar(max)         null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_Type_Storage_location_Audit ON Type_Storage_location
+AFTER INSERT, UPDATE, DELETE
+
+AS 
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN
+                            declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Type_Storage_location,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Type_Storage_location,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ;
+                           
+						   DECLARE @OldID_Type_Storage_location    bigint           ;
+						   DECLARE @OldName_Type_Storage_location  nvarchar(300)	;
+						   DECLARE @OldSysNameTypeStoragelocation  nvarchar(300)	;
+	                       DECLARE @OldDescription                 nvarchar(4000)	;
+
+                           DECLARE @NewID_Type_Storage_location    bigint           ;
+						   DECLARE @NewName_Type_Storage_location  nvarchar(300)	;
+						   DECLARE @NewSysNameTypeStoragelocation  nvarchar(300)	;
+						   DECLARE @NewDescription                 nvarchar(4000)	;
+                           
+						   declare cr cursor local fast_forward for
+						   
+						   select 
+						   ID_entity    
+						   ,login_name   
+						   ,ModifiedDate 
+						   ,Name_action  
+						   from @t_U_D 
+                           open cr       
+						   
+						   fetch next from cr into 
+						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						   while @@FETCH_STATUS  = 0
+						        begin
+							         begin try
+                                        set @ChangeDescription = ''
+
+							            SELECT 
+							                @NewID_Type_Storage_location    = I.ID_Type_Storage_location  ,
+							            	@NewName_Type_Storage_location	= I.Name_Type_Storage_location,
+							            	@NewSysNameTypeStoragelocation  = I.SysNameTypeStoragelocation,            
+							            	@NewDescription                 = I.[Description]        	
+							            FROM inserted I
+										where @ID_entity_D = I.ID_Type_Storage_location;	
+							            
+							            SELECT 
+							                @OldID_Type_Storage_location    = D.ID_Type_Storage_location  ,
+							            	@OldName_Type_Storage_location  = D.Name_Type_Storage_location,
+							            	@OldSysNameTypeStoragelocation	= D.SysNameTypeStoragelocation,
+							            	@OldDescription                 = D.[Description]        							
+							            FROM Deleted D	
+										where @ID_entity_D = D.ID_Type_Storage_location; 
+
+                            
+							            IF ISNULL(@NewName_Type_Storage_location,'null') <> ISNULL(@OldName_Type_Storage_location,'null')
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Name_Type_Storage_location = Old ->"' +  ISNULL(@OldName_Type_Storage_location,'') + ' " NEW -> "' + isnull(@NewName_Type_Storage_location,'') + '", ';
+							               end
+							            
+							            IF ISNULL(@NewSysNameTypeStoragelocation,'null') <> ISNULL(@OldSysNameTypeStoragelocation,'null') 
+							               begin
+							                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysNameTypeStoragelocation = Old ->"' +  ISNULL(@OldSysNameTypeStoragelocation,'') + ' " NEW -> "' + isnull(@NewSysNameTypeStoragelocation,'') + '", ';
+							               end                  
+							            
+                                        IF ISNULL(@NewDescription,'null') <> ISNULL(@OldDescription,'null')
+							               begin
+                                            SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> "' + ISNULL(@NewDescription,'') + '",';
+                                           end
+							            
+                                        SET @ChangeDescription = 'Updated: ' + ' ID_Type_Storage_location = "' +  isnull(cast(@OldID_Type_Storage_location as nvarchar(50)),'')+ '" ' + ISNULL(@ChangeDescription,'')
+                                         --Удаляем запятую на конце
+                                        IF LEN(@ChangeDescription) > 0
+                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                            
+                                        INSERT  INTO dbo.Type_Storage_location_Audit
+                                        ( 
+                                         ID_Type_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                        )
+                                          SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                        
+									    set @ChangeDescription = '' 
+								end try
+								begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+                END
+            ELSE
+                BEGIN
+                            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_Type_Storage_location,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+                           DECLARE @OldID_Type_Storage_location_2    bigint         ;
+						   DECLARE @OldName_Type_Storage_location_2  nvarchar(300)	;
+						   DECLARE @OldSysNameTypeStoragelocation_2  nvarchar(300)	;
+	                       DECLARE @OldDescription_2                 nvarchar(4000)	;
+
+						   declare cr_2 cursor local fast_forward for
+						   
+						   select 
+						   ID_entity   
+						   ,login_name  
+						   ,ModifiedDate
+						   ,Name_action 
+						   from @t_D_D 
+                           open cr_2       
+						   
+						   fetch next from cr_2 into 
+						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						   while @@FETCH_STATUS  = 0
+						         begin
+							          begin try
+									        set @ChangeDescription = ''
+
+                                            SELECT 
+							                    @OldID_Type_Storage_location_2    = D.ID_Type_Storage_location   ,
+							                	@OldName_Type_Storage_location_2  = D.Name_Type_Storage_location ,
+							                	@OldSysNameTypeStoragelocation_2  = D.SysNameTypeStoragelocation ,
+							                	@OldDescription_2                 = D.[Description]        
+							                FROM deleted D
+											where @ID_entity_D_2 = D.ID_Type_Storage_location
+
+                                            SET @ChangeDescription = 'Deleted: '
+							                + 'ID_Type_Storage_location'   +' = "'+  ISNULL(CAST(@OldID_Type_Storage_location_2  AS NVARCHAR(50)),'')+ '", '
+							                + 'Name_Type_Storage_location' +' = "'+  ISNULL(@OldName_Type_Storage_location_2,'')+ '", '
+							                + 'SysNameTypeStoragelocation' +' = "'+  ISNULL(@OldSysNameTypeStoragelocation_2,'')+ '", '
+							                + 'Description'                +' = "'+  ISNULL(@OldDescription_2  ,'') + '", '
+                          
+						                    IF LEN(@ChangeDescription) > 0
+                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+
+                                            INSERT  INTO dbo.Type_Storage_location_Audit
+                                            ( 
+                                             ID_Type_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                            )
+                                             SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                     
+									        set @ChangeDescription = '' 
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+                END  
+        END
+    ELSE
+        BEGIN
+                   declare @t_I_I table 
+				   (
+				   Id_Num         bigint        identity(1,1) not null,
+				   ID_entity      bigint        null,
+				   login_name     nvarchar(128) null,
+				   ModifiedDate   DATETIME      null,
+				   Name_action    char(1)       null
+				   );
+				   
+				   
+				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+				   SELECT I.ID_Type_Storage_location,@login_name,GETDATE(),'I'  
+				   FROM  inserted I 
+
+				   DECLARE @ID_entity_I_2    bigint       ;
+				   DECLARE @login_name_2_I_2 nvarchar(128);
+				   DECLARE @ModifiedDate_I_2 DATETIME     ;
+				   DECLARE @Name_action_I_2  char(1)      ;
+
+                   declare cr_3 cursor local fast_forward for
+						   
+				   select 
+				   ID_entity   
+				   ,login_name  
+				   ,ModifiedDate
+				   ,Name_action 
+				   from @t_I_I 
+                      open cr_3       
+				   
+				   fetch next from cr_3 into 
+				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+				   while @@FETCH_STATUS  = 0
+						   begin
+							     begin try
+								       set @ChangeDescription = ''
+
+                                       SET @ChangeDescription = 'Inserted: '
+                                               + 'ID_Type_Storage_location = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                                       
+									   INSERT  INTO dbo.Type_Storage_location_Audit
+                                       ( 
+                                        ID_Type_Storage_location,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                       )
+                                        SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									   set @ChangeDescription = ''
+								 end try
+								 begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3           
+                    END
+
+GO
+
+
+CREATE TABLE TypeItem_Audit
+(
+    AuditID              bigint IDENTITY(1,1)  not null,
+    Id_TypeItem          bigint                null,
+ 	ModifiedBy           nVARCHAR(128)         null,
+    ModifiedDate         DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation            CHAR(1)               null,
+    ChangeDescription    nvarchar(max)        null
+--    PRIMARY KEY CLUSTERED ( AuditID ) 
+) on Products_Group;
+
+
+go
+
+CREATE TRIGGER trg_TypeItem_Audit ON TypeItem
+AFTER INSERT, UPDATE, DELETE
+
+AS
+    set nocount,xact_abort on;
+
+    DECLARE @login_name nVARCHAR(128) 
+	DECLARE @ChangeDescription nvarchar(max)='';
+
+
+    SELECT  @login_name = login_name
+    FROM    sys.dm_exec_sessions
+    WHERE   session_id = @@SPID
+
+    IF EXISTS ( SELECT 0 FROM Deleted )
+        BEGIN
+            IF EXISTS ( SELECT 0 FROM Inserted )
+                BEGIN       
+				            declare @t_U_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							declare @t_U_I table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_TypeItem,@login_name,GETDATE(),'U'  
+							FROM  Deleted D
+
+							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_TypeItem,@login_name,GETDATE(),'U'  
+							FROM  inserted D
+ 
+							DECLARE @ID_entity_D    bigint       ;
+							DECLARE @login_name_2_D nvarchar(128);
+							DECLARE @ModifiedDate_D DATETIME     ;
+							DECLARE @Name_action_D  char(1)      ;
+ 
+							DECLARE @ID_entity_I    bigint       ;
+							DECLARE @login_name_2_I nvarchar(128);
+							DECLARE @ModifiedDate_I DATETIME     ;
+							DECLARE @Name_action_I  char(1)      ; 
+
+                            
+                            DECLARE @OldId_TypeItem BIGINT;
+                            DECLARE @OldTypeItemName NVARCHAR(300);
+                            DECLARE @OldSysTypeItemName NVARCHAR(300);
+                            DECLARE @OldDescription NVARCHAR(4000);	                    
+	                       
+							DECLARE @NewId_TypeItem BIGINT;
+                            DECLARE @NewTypeItemName NVARCHAR(300);
+                            DECLARE @NewSysTypeItemName NVARCHAR(300);
+                            DECLARE @NewDescription NVARCHAR(4000);
+
+							declare cr cursor local fast_forward for
+						   
+						    select 
+						    ID_entity    
+						    ,login_name   
+						    ,ModifiedDate 
+						    ,Name_action  
+						    from @t_U_D 
+                            open cr       
+						    
+						    fetch next from cr into 
+						    @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
+						    while @@FETCH_STATUS  = 0
+						         begin
+							         begin try
+									       set @ChangeDescription = ''
+
+									       SELECT @NewId_TypeItem     = I.Id_TypeItem    ,
+							                      @NewTypeItemName    = I.TypeItemName   , 
+							                      @NewSysTypeItemName = I.SysTypeItemName,
+							                      @NewDescription     = I.[Description]
+							               FROM inserted I
+										   where @ID_entity_D = I.Id_TypeItem;
+
+									       SELECT @OldId_TypeItem     = D.Id_TypeItem    , 
+                                                  @OldTypeItemName    = D.TypeItemName   , 
+                                                  @OldSysTypeItemName = D.SysTypeItemName,
+                                                  @OldDescription     = D.[Description]
+                                           FROM deleted D
+										   where @ID_entity_D = D.Id_TypeItem;
+
+							               
+                                          IF isnull(@NewTypeItemName,'null') <> isnull(@OldTypeItemName,'null') 
+							                 begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeItemName = Old ->"' +  ISNULL(@OldTypeItemName,'') + ' " NEW -> " ' + isnull(@NewTypeItemName,'') + '", ';
+							                 end
+
+                                          IF isnull(@NewSysTypeItemName,'null') <> isnull(@OldSysTypeItemName,'null')
+							                 begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeItemName = Old ->"' + ISNULL(@OldSysTypeItemName,'') + ' " NEW -> "' + ISNULL(@NewSysTypeItemName,'') + '", ';
+							                 end
+
+                                          IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							                 begin
+                                              SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                             end
+
+                                          SET @ChangeDescription = 'Updated: ' + ' Id_TypeItem = "' +  isnull(cast(@OldId_TypeItem as nvarchar(20)),'')+ '" ' + isnull(@ChangeDescription,'')
+                                           --Удаляем запятую на конце
+                                          IF LEN(@ChangeDescription) > 0
+                                              SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                              			  INSERT  INTO dbo.TypeItem_Audit
+                                          ( 
+                                           Id_TypeItem,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                          )
+                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     
+									      set @ChangeDescription = '' 
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_U_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
+									   ERROR_STATE() as ErrorState_U_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
+									   ERROR_LINE() as ErrorLine_U_D,
+									   ERROR_MESSAGE() as ErrorMessage_U_D;
+								  end catch;
+							     fetch next from cr into 
+								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
+						         end
+						   close cr
+                           deallocate cr
+                END
+            ELSE
+                BEGIN        
+				            declare @t_D_D table 
+							(
+							Id_Num         bigint        identity(1,1) not null,
+							ID_entity      bigint        null,
+							login_name     nvarchar(128) null,
+							ModifiedDate   DATETIME      null,
+							Name_action    char(1)       null
+							);
+
+
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.Id_TypeItem,@login_name,GETDATE(),'D'  
+							FROM  Deleted D
+
+							DECLARE @ID_entity_D_2    bigint       ;
+							DECLARE @login_name_2_D_2 nvarchar(128);
+							DECLARE @ModifiedDate_D_2 DATETIME     ;
+							DECLARE @Name_action_D_2  char(1)      ;
+
+							DECLARE @OldId_TypeItem_2 BIGINT;
+                            DECLARE @OldTypeItemName_2 NVARCHAR(300);
+                            DECLARE @OldSysTypeItemName_2 NVARCHAR(300);
+                            DECLARE @OldDescription_2 NVARCHAR(4000);
+                            
+							declare cr_2 cursor local fast_forward for
+						   
+						    select 
+						    ID_entity   
+						    ,login_name  
+						    ,ModifiedDate
+						    ,Name_action 
+						    from @t_D_D 
+                            open cr_2       
+						   
+						    fetch next from cr_2 into 
+						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						    while @@FETCH_STATUS  = 0
+						         begin
+							         begin try
+									       set @ChangeDescription = ''
+
+									       SELECT
+										          @OldId_TypeItem_2     = D.Id_TypeItem    , 
+                                                  @OldTypeItemName_2    = D.TypeItemName   , 
+                                                  @OldSysTypeItemName_2 = D.SysTypeItemName,
+                                                  @OldDescription_2     = D.[Description]
+                                           FROM deleted D
+										   where @ID_entity_D_2 = D.Id_TypeItem;
+										   
+                                           SET @ChangeDescription = 'Deleted: '
+                                              + 'Id_TypeItem'    + ' = "' + isnull(CAST(@OldId_TypeItem_2 AS NVARCHAR(50)),'') + '", '
+                                              + 'TypeItemName'   + ' = "' + ISNULL(@OldTypeItemName_2, '') + '", '
+                                              + 'SysTypeItemName'+ ' = "' + ISNULL(@OldSysTypeItemName_2, '') + '", '
+                                              + 'Description'    + ' = "' + ISNULL(@OldDescription_2, '') + '" ';
+                            
+                                           IF LEN(@ChangeDescription) > 0
+                                                 SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                           
+										  INSERT  INTO dbo.TypeItem_Audit
+                                          ( 
+                                           Id_TypeItem,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                          )
+                                           SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                          
+									      set @ChangeDescription = '' 
+
+								  end try
+								  begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_D_D,
+									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
+									   ERROR_STATE() as ErrorState_D_D,
+									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
+									   ERROR_LINE() as ErrorLine_D_D,
+									   ERROR_MESSAGE() as ErrorMessage_D_D;
+								  end catch;
+							     fetch next from cr_2 into 
+								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
+						         end
+						   close cr_2
+                           deallocate cr_2
+
+                END  
+        END
+    ELSE
+        BEGIN       
+		            declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
+
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.Id_TypeItem,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+
+					DECLARE @ID_entity_I_2    bigint       ;
+				    DECLARE @login_name_2_I_2 nvarchar(128);
+				    DECLARE @ModifiedDate_I_2 DATETIME     ;
+				    DECLARE @Name_action_I_2  char(1)      ;
+
+		            declare cr_3 cursor local fast_forward for
+						   
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
+						  begin
+							    begin try 
+								       set @ChangeDescription = ''
+
+                                       SET @ChangeDescription = 'Inserted: '
+                                            + 'Id_TypeItem = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
+                                       
+									   INSERT  INTO dbo.TypeItem_Audit
+                                        ( 
+                                         Id_TypeItem,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                        )
+                                         SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
+                                     
+									   set @ChangeDescription = ''
+                                 end try
+								 begin catch
+								     if xact_state() in (1, -1)
+									    begin
+									       ROLLBACK TRAN
+									    end
+								     SELECT 
+									   ERROR_NUMBER() AS ErrorNumber_I_I,
+									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
+									   ERROR_STATE() as ErrorState_I_I,
+									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
+									   ERROR_LINE() as ErrorLine_I_I,
+									   ERROR_MESSAGE() as ErrorMessage_I_I;
+								  end catch;
+							     fetch next from cr_3 into 
+								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
+						         end
+						   close cr_3
+                           deallocate cr_3
+
+                    END
+
+GO
+
+
+CREATE TABLE TypeOrders_Audit
+(
+    AuditID                bigint IDENTITY(1,1)  not null,
+    ID_TypeOrders          bigint                null,
+ 	ModifiedBy             nVARCHAR(128)         null,
+    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
+	Operation              CHAR(1)               null,
+    ChangeDescription      nvarchar(max)        null
  --   PRIMARY KEY CLUSTERED ( AuditID ) 
 ) on Orders_Group;
 
 
 go
 
-CREATE TRIGGER trg_Order_Assignment_Audit ON Order_Assignment
+CREATE TRIGGER trg_TypeOrders_Audit ON TypeOrders
 AFTER INSERT, UPDATE, DELETE
 
 AS
     set nocount,xact_abort on;
 
     DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
+	DECLARE @ChangeDescription nvarchar(max)='';
 
 
     SELECT  @login_name = login_name
@@ -10635,7 +12148,7 @@ AS
         BEGIN
             IF EXISTS ( SELECT 0 FROM Inserted )
                 BEGIN
-				           declare @t_U_D table 
+                      		declare @t_U_D table 
 							(
 							Id_Num         bigint        identity(1,1) not null,
 							ID_entity      bigint        null,
@@ -10654,11 +12167,11 @@ AS
 							);
 
 							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_OrderAssignment,@login_name,GETDATE(),'U'  
+							SELECT d.ID_TypeOrders,@login_name,GETDATE(),'U'  
 							FROM  Deleted D
 
 							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_OrderAssignment,@login_name,GETDATE(),'U'  
+							SELECT d.ID_TypeOrders,@login_name,GETDATE(),'U'  
 							FROM  inserted D
  
 							DECLARE @ID_entity_D    bigint       ;
@@ -10670,20 +12183,18 @@ AS
 							DECLARE @login_name_2_I nvarchar(128);
 							DECLARE @ModifiedDate_I DATETIME     ;
 							DECLARE @Name_action_I  char(1)      ;
-                                          	                      
-                           DECLARE @OldID_OrderAssignment       bigint        ;
-						   DECLARE @OldOrderAssignmentName      nvarchar(300) ;
-						   DECLARE @OldOrderAssignmentNameEng   nvarchar(300) ;
-						   DECLARE @OldOrderAssignmentSysName   nvarchar(300) ;
-						   DECLARE @OldDescription              nvarchar(4000);
+                            
+                            DECLARE @OldID_TypeOrders       bigint        ;
+                            DECLARE @OldTypeOrdersName      nvarchar(300) ;
+                            DECLARE @OldTypeOrdersSysName   nvarchar(300) ;
+                            DECLARE @OldDescription         nvarchar(4000);                  
+	                       
+							DECLARE @NewID_TypeOrders       bigint        ;
+                            DECLARE @NewTypeOrdersName      nvarchar(300) ;
+                            DECLARE @NewTypeOrdersSysName   nvarchar(300) ;
+                            DECLARE @NewDescription         nvarchar(4000); 
 
-                           DECLARE @NewID_OrderAssignment       bigint        ;
-						   DECLARE @NewOrderAssignmentName      nvarchar(300) ;
-						   DECLARE @NewOrderAssignmentNameEng   nvarchar(300) ;
-						   DECLARE @NewOrderAssignmentSysName   nvarchar(300) ;
-						   DECLARE @NewDescription              nvarchar(4000);
-                       
-					       declare cr cursor local fast_forward for
+							declare cr cursor local fast_forward for
 						   
 						   select 
 						   ID_entity    
@@ -10698,60 +12209,56 @@ AS
 						   while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-							                SELECT 
-                                                  @NewID_OrderAssignment      	= I.ID_OrderAssignment    ,
-												  @NewOrderAssignmentName    	= I.OrderAssignmentName   ,
-												  @NewOrderAssignmentNameEng 	= I.OrderAssignmentNameEng,
-												  @NewOrderAssignmentSysName 	= I.OrderAssignmentSysName,
-												  @NewDescription               = I.[Description]      	  
-							                FROM inserted I									 
-							                where @ID_entity_D = I.ID_OrderAssignment;	
 
-							                SELECT   
-                                                  @OldID_OrderAssignment      	= D.ID_OrderAssignment    ,
-												  @OldOrderAssignmentName    	= D.OrderAssignmentName   ,
-												  @OldOrderAssignmentNameEng 	= D.OrderAssignmentNameEng,
-												  @OldOrderAssignmentSysName 	= D.OrderAssignmentSysName,
-												  @OldDescription               = D.[Description]        	  
-							                FROM Deleted D																		 
-											 where @ID_entity_D = D.ID_OrderAssignment; 
+								      set @ChangeDescription = ''
+							          SELECT 
+							                 @NewID_TypeOrders     = I.ID_TypeOrders     ,
+							                 @NewTypeOrdersName    = I.TypeOrdersName    ,
+							                 @NewTypeOrdersSysName = I.TypeOrdersSysName ,
+							                 @NewDescription       = I.[Description]      
+							          FROM inserted I									 
+							          where @ID_entity_D = I.ID_TypeOrders 
+
+							          SELECT 
+                                             @OldID_TypeOrders     = D.ID_TypeOrders     ,
+                                             @OldTypeOrdersName    = D.TypeOrdersName    ,
+                                             @OldTypeOrdersSysName = D.TypeOrdersSysName ,
+                                             @OldDescription       = D.[Description]      
+							          FROM Deleted D								 
+                                      where @ID_entity_D = D.ID_TypeOrders
 
 
-                                            IF @NewOrderAssignmentName <> @OldOrderAssignmentName
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderAssignmentName = Old ->"' +  ISNULL(@OldOrderAssignmentName,'') + ' " NEW -> " ' + isnull(@NewOrderAssignmentName,'') + '", ';
-							                   end
-                                            
-							                IF @NewOrderAssignmentNameEng <> @OldOrderAssignmentNameEng 
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderAssignmentNameEng = Old ->"' +  ISNULL(@OldOrderAssignmentNameEng,'') + ' " NEW -> " ' + isnull(@NewOrderAssignmentNameEng,'') + '", ';
-							                   end
 
-											IF @NewOrderAssignmentSysName <> @OldOrderAssignmentSysName 
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderAssignmentSysName = Old ->"' +  ISNULL(@OldOrderAssignmentSysName,'') + ' " NEW -> " ' + isnull(@NewOrderAssignmentSysName,'') + '", ';
-							                   end
-                                                                                                    
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            
-                                            SET @ChangeDescription = 'Updated: ' + ' ID_OrderAssignment = "' +  isnull(cast(@OldID_OrderAssignment as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                            
-                                            INSERT  INTO dbo.Order_Assignment_Audit
-                                            ( 
-                                             ID_OrderAssignment,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                      IF isnull(@NewTypeOrdersName,'null') <> isnull(@OldTypeOrdersName,'null') 
+							             begin
+                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeOrdersName = Old ->"' +  ISNULL(@OldTypeOrdersName,'') + ' " NEW -> " ' + isnull(@NewTypeOrdersName,'') + '", ';
+							             end
+
+                                      IF isnull(@NewTypeOrdersSysName,'null') <> isnull(@OldTypeOrdersSysName,'null')
+							             begin
+                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeOrdersSysName = Old ->"' + ISNULL(@OldTypeOrdersSysName,'') + ' " NEW -> "' + ISNULL(@NewTypeOrdersSysName,'') + '", ';
+							             end
+
+                                      IF isnull(@NewDescription,'null') <> isnull(@OldDescription,'null')
+							             begin
+                                          SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
+                                         end
+
+                                      SET @ChangeDescription = 'Updated: ' + ' ID_TypeOrders = "' +  isnull(cast(@OldID_TypeOrders as nvarchar(50)),'')+ '" ' + isnull(@ChangeDescription,'')
+                                       --Удаляем запятую на конце
+                                      IF LEN(@ChangeDescription) > 0
+                                          SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                            
+                                      INSERT  INTO dbo.TypeOrders_Audit
+                                     ( 
+                                      ID_TypeOrders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                     )
+                                      SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
                                      
-									        set @ChangeDescription = null 
+									set @ChangeDescription = '' 
 
-								   end try
-								   begin catch
+								  end try
+								  begin catch
 								     if xact_state() in (1, -1)
 									    begin
 									       ROLLBACK TRAN
@@ -10768,11 +12275,12 @@ AS
 								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
 						         end
 						   close cr
-                           deallocate cr                               					
+                           deallocate cr
+   					
                 END
             ELSE
                 BEGIN
-				            declare @t_D_D table 
+                           declare @t_D_D table 
 							(
 							Id_Num         bigint        identity(1,1) not null,
 							ID_entity      bigint        null,
@@ -10781,63 +12289,61 @@ AS
 							Name_action    char(1)       null
 							);
 
-					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_OrderAssignment,@login_name,GETDATE(),'D'  
+							insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
+							SELECT d.ID_TypeOrders,@login_name,GETDATE(),'D'  
 							FROM  Deleted D
-
 
 							DECLARE @ID_entity_D_2    bigint       ;
 							DECLARE @login_name_2_D_2 nvarchar(128);
 							DECLARE @ModifiedDate_D_2 DATETIME     ;
 							DECLARE @Name_action_D_2  char(1)      ;
 
-                           DECLARE @OldID_OrderAssignment_2       bigint        ;
-						   DECLARE @OldOrderAssignmentName_2      nvarchar(300) ;
-						   DECLARE @OldOrderAssignmentNameEng_2   nvarchar(300) ;
-						   DECLARE @OldOrderAssignmentSysName_2   nvarchar(300) ;
-						   DECLARE @OldDescription_2              nvarchar(4000);
-
-                            declare cr_2 cursor local fast_forward for
+							DECLARE @OldID_TypeOrders_2       bigint        ;
+                            DECLARE @OldTypeOrdersName_2      nvarchar(300) ;
+                            DECLARE @OldTypeOrdersSysName_2   nvarchar(300) ;
+                            DECLARE @OldDescription_2         nvarchar(4000);     
+                            
+							declare cr_2 cursor local fast_forward for
 						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						        begin
-							       begin try
-							               SELECT 
-                                                @OldID_OrderAssignment_2     = D.ID_OrderAssignment    ,
-												@OldOrderAssignmentName_2    = D.OrderAssignmentName   ,
-												@OldOrderAssignmentNameEng_2 = D.OrderAssignmentNameEng,
-												@OldOrderAssignmentSysName_2 = D.OrderAssignmentSysName,
-												@OldDescription_2            = D.[Description]        	
-							               FROM deleted D									 
-										   where @ID_entity_D_2 = D.ID_OrderAssignment;
+						   select 
+						   ID_entity   
+						   ,login_name  
+						   ,ModifiedDate
+						   ,Name_action 
+						   from @t_D_D 
+                           open cr_2       
+						   
+						   fetch next from cr_2 into 
+						   @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
+						   while @@FETCH_STATUS  = 0
+						       begin
+							      begin try
+								      set @ChangeDescription = ''
 
-                                           SET @ChangeDescription = 'Deleted: '
-							               + 'ID_OrderAssignment'      +' = "'+  ISNULL(CAST(@OldID_OrderAssignment_2  AS NVARCHAR(50)),'')+ '", '
-										   + 'OrderAssignmentName'     +' = "'+  ISNULL(@OldOrderAssignmentName_2,'')+ '", '
-							               + 'OrderAssignmentNameEng'  +' = "'+  ISNULL(@OldOrderAssignmentNameEng_2,'')+ '", '
-							               + 'OrderAssignmentSysName'  +' = "'+  ISNULL(@OldOrderAssignmentSysName_2,'')+ '", '
-							               + '[Description]'           +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
+							          SELECT 
+							                 @OldID_TypeOrders_2     = D.ID_TypeOrders     ,
+							                 @OldTypeOrdersName_2    = D.TypeOrdersName    ,
+							                 @OldTypeOrdersSysName_2 = D.TypeOrdersSysName ,
+							                 @OldDescription_2       = D.[Description]      
+							          FROM deleted D									 
+							          where @ID_entity_D_2 = D.ID_TypeOrders
 
-                                           IF LEN(@ChangeDescription) > 0
-                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+                                      SET @ChangeDescription = 'Deleted: '
+                                          + 'ID_TypeOrders'     +' = "'+ isnull(CAST(@OldID_TypeOrders_2 AS NVARCHAR(50)),'') + '", '
+                                          + 'TypeOrdersName'    +' = "'+ ISNULL(@OldTypeOrdersName_2, '') + '", '
+                                          + 'TypeOrdersSysName' +' = "'+ ISNULL(@OldTypeOrdersSysName_2, '') + '", '
+                                          + 'Description'       +' = "'+ ISNULL(@OldDescription_2, '') + '" ';
 
-                                           INSERT  INTO dbo.Order_Assignment_Audit
-                                           ( 
-                                            ID_OrderAssignment,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+                                      IF LEN(@ChangeDescription) > 0
+                                            SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
+						  
+                                      INSERT  INTO dbo.TypeOrders_Audit
+                                     ( 
+                                      ID_TypeOrders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                     )
+                                      SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									set @ChangeDescription = ''
 
 								  end try
 								  begin catch
@@ -10858,393 +12364,63 @@ AS
 						         end
 						   close cr_2
                            deallocate cr_2
-
-
                 END  
         END
     ELSE
         BEGIN
-		           declare @t_I_I table 
-				   (
-				   Id_Num         bigint        identity(1,1) not null,
-				   ID_entity      bigint        null,
-				   login_name     nvarchar(128) null,
-				   ModifiedDate   DATETIME      null,
-				   Name_action    char(1)       null
-				   );
+                    DECLARE @ID_entity_I_2    bigint       ;
+				    DECLARE @login_name_2_I_2 nvarchar(128);
+				    DECLARE @ModifiedDate_I_2 DATETIME     ;
+				    DECLARE @Name_action_I_2  char(1)      ; 
 
+					declare @t_I_I table 
+					(
+					Id_Num         bigint        identity(1,1) not null,
+					ID_entity      bigint        null,
+					login_name     nvarchar(128) null,
+					ModifiedDate   DATETIME      null,
+					Name_action    char(1)       null
+					);
 
-				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-				   SELECT I.ID_OrderAssignment,@login_name,GETDATE(),'I'  
-				   FROM  inserted I
-
-				   DECLARE @ID_entity_I_2    bigint       ;
-				   DECLARE @login_name_2_I_2 nvarchar(128);
-				   DECLARE @ModifiedDate_I_2 DATETIME     ;
-				   DECLARE @Name_action_I_2  char(1)      ;
-		 
-		           declare cr_3 cursor local fast_forward for
+					insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
+					SELECT I.ID_TypeOrders,@login_name,GETDATE(),'I'  
+					FROM  inserted I
+		            
+					declare cr_3 cursor local fast_forward for
 						   
-				   select 
-				   ID_entity   
-				   ,login_name  
-				   ,ModifiedDate
-				   ,Name_action 
-				   from @t_I_I 
-                      open cr_3       
-				   
-				   fetch next from cr_3 into 
-				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-				   while @@FETCH_STATUS  = 0
-						  begin
-							   begin try
-                                     SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_OrderAssignment = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                      INSERT  INTO dbo.Order_Assignment_Audit
-                                      ( 
-                                       ID_OrderAssignment,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                      )
-                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									 set @ChangeDescription = null              
-
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-                    END
-
-GO
-
-CREATE TABLE Order_category_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_OrderCategory       bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)         null
- --   PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Orders_Group;
-
-
-go
-
-CREATE TRIGGER trg_Order_category_Audit ON Order_category
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-				           declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_OrderCategory,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_OrderCategory,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                                          	                      
-                           DECLARE @OldID_OrderCategory         bigint         ;
-						   DECLARE @OldOrderCategoryName   	    nvarchar(300)  ;
-						   DECLARE @OldAbbreviation        	    nvarchar(10)   ;
-						   DECLARE @OldOrderCategorySysName	    nvarchar(300)  ;
-						   DECLARE @OldDescription      		nvarchar(4000) ;
-
-                           DECLARE @NewID_OrderCategory         bigint         ;
-						   DECLARE @NewOrderCategoryName   	    nvarchar(300)  ;
-						   DECLARE @NewAbbreviation        	    nvarchar(10)   ;
-						   DECLARE @NewOrderCategorySysName	    nvarchar(300)  ;
-						   DECLARE @NewDescription      		nvarchar(4000) ;
-                       
-					       declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
+					select 
+					ID_entity   
+					,login_name  
+					,ModifiedDate
+					,Name_action 
+					from @t_I_I 
+                    open cr_3       
+					
+					fetch next from cr_3 into 
+					@ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
+					while @@FETCH_STATUS  = 0
 						       begin
 							      begin try
-							                SELECT 
-                                                  @NewID_OrderCategory     	= I.ID_OrderCategory    ,
-												  @NewOrderCategoryName   	= I.OrderCategoryName   ,
-												  @NewAbbreviation        	= I.Abbreviation        ,
-												  @NewOrderCategorySysName	= I.OrderCategorySysName,
-												  @NewDescription      	    = I.[Description]      	  
-							                FROM inserted I									 
-							                where @ID_entity_D = I.ID_OrderCategory;	
+								     set @ChangeDescription = ''
 
-							                SELECT   
-											      @OldID_OrderCategory     	= D.ID_OrderCategory    ,
-												  @OldOrderCategoryName   	= D.OrderCategoryName   ,
-												  @OldAbbreviation        	= D.Abbreviation        ,
-												  @OldOrderCategorySysName	= D.OrderCategorySysName,
-												  @OldDescription      	    = D.[Description]      	  
-							                FROM Deleted D																		 
-											 where @ID_entity_D = D.ID_OrderCategory; 
-
-
-                                            IF @NewOrderCategoryName <> @OldOrderCategoryName 
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderCategoryName = Old ->"' +  ISNULL(@OldOrderCategoryName,'') + ' " NEW -> " ' + isnull(@NewOrderCategoryName,'') + '", ';
-							                   end
-                                            
-							                IF @NewAbbreviation <> @OldAbbreviation 
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Abbreviation = Old ->"' +  ISNULL(@OldAbbreviation,'') + ' " NEW -> " ' + isnull(@NewAbbreviation,'') + '", ';
-							                   end
-
-											IF @NewOrderCategorySysName <> @OldOrderCategorySysName 
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  OrderCategorySysName = Old ->"' +  ISNULL(@OldOrderCategorySysName,'') + ' " NEW -> " ' + isnull(@NewOrderCategorySysName,'') + '", ';
-							                   end
-                                                                                                    
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            
-                                            SET @ChangeDescription = 'Updated: ' + ' ID_OrderCategory = "' +  isnull(cast(@OldID_OrderCategory as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                            
-                                            INSERT  INTO dbo.Order_category_Audit
-                                            ( 
-                                             ID_OrderCategory,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
+                                     SET @ChangeDescription = 'Inserted: '
+                                         + 'ID_TypeOrders = "' + CAST(@ID_entity_I_2 AS NVARCHAR(50)) + '" ';
                                      
-									        set @ChangeDescription = null 
-
-								   end try
-								   begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr                               					
-                END
-            ELSE
-                BEGIN
-				            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_OrderCategory,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-                           DECLARE @OldID_OrderCategory_2           bigint         ;
-						   DECLARE @OldOrderCategoryName_2   	    nvarchar(300)  ;
-						   DECLARE @OldAbbreviation_2        	    nvarchar(10)   ;
-						   DECLARE @OldOrderCategorySysName_2	    nvarchar(300)  ;
-						   DECLARE @OldDescription_2      		    nvarchar(4000) ;
-
-                            declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						        begin
-							       begin try
-							               SELECT 
-                                                 @OldID_OrderCategory_2     	= D.ID_OrderCategory    ,
-												 @OldOrderCategoryName_2   	    = D.OrderCategoryName   ,
-												 @OldAbbreviation_2        	    = D.Abbreviation        ,
-												 @OldOrderCategorySysName_2	    = D.OrderCategorySysName,
-												 @OldDescription_2      	    = D.[Description]      	  
-							               FROM deleted D									 
-										   where @ID_entity_D_2 = D.ID_OrderCategory;
-
-                                           SET @ChangeDescription = 'Deleted: '
-							               + 'ID_OrderCategory'      +' = "'+  ISNULL(CAST(@OldID_OrderCategory_2  AS NVARCHAR(50)),'')+ '", '
-										   + 'OrderCategoryName'     +' = "'+  ISNULL(@OldOrderCategoryName_2,'')+ '", '
-							               + 'Abbreviation'          +' = "'+  ISNULL(@OldAbbreviation_2,'')+ '", '
-							               + 'OrderCategorySysName'  +' = "'+  ISNULL(@OldOrderCategorySysName_2,'')+ '", '
-							               + '[Description]'         +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
-
-                                           IF LEN(@ChangeDescription) > 0
-                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                           INSERT  INTO dbo.Order_category_Audit
-                                           ( 
-                                            ID_OrderCategory,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
+									 INSERT  INTO dbo.TypeOrders_Audit
+                                     ( 
+                                      ID_TypeOrders,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
+                                     )
+                                      SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
                                      
-									       set @ChangeDescription = null
+									set @ChangeDescription = ''
 
-								  end try
+                                  end try
 								  begin catch
 								     if xact_state() in (1, -1)
 									    begin
 									       ROLLBACK TRAN
 									    end
 								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-
-
-                END  
-        END
-    ELSE
-        BEGIN
-		           declare @t_I_I table 
-				   (
-				   Id_Num         bigint        identity(1,1) not null,
-				   ID_entity      bigint        null,
-				   login_name     nvarchar(128) null,
-				   ModifiedDate   DATETIME      null,
-				   Name_action    char(1)       null
-				   );
-
-
-				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-				   SELECT I.ID_OrderCategory,@login_name,GETDATE(),'I'  
-				   FROM  inserted I
-
-				   DECLARE @ID_entity_I_2    bigint       ;
-				   DECLARE @login_name_2_I_2 nvarchar(128);
-				   DECLARE @ModifiedDate_I_2 DATETIME     ;
-				   DECLARE @Name_action_I_2  char(1)      ;
-		 
-		           declare cr_3 cursor local fast_forward for
-						   
-				   select 
-				   ID_entity   
-				   ,login_name  
-				   ,ModifiedDate
-				   ,Name_action 
-				   from @t_I_I 
-                      open cr_3       
-				   
-				   fetch next from cr_3 into 
-				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-				   while @@FETCH_STATUS  = 0
-						  begin
-							   begin try
-                                     SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_OrderCategory = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                      INSERT  INTO dbo.Order_category_Audit
-                                      ( 
-                                       ID_OrderCategory,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                      )
-                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									 set @ChangeDescription = null              
-
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
 									   ERROR_NUMBER() AS ErrorNumber_I_I,
 									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
 									   ERROR_STATE() as ErrorState_I_I,
@@ -11257,966 +12433,11 @@ AS
 						         end
 						   close cr_3
                            deallocate cr_3
+               
+
                     END
 
 GO
-
-
-CREATE TABLE Storage_location_status_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    Id_Status              bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)         null
- --   PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_Storage_location_status_Audit ON Storage_location_status
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-				           declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Status,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Status,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                                          	                      
-                           DECLARE @OldId_Status                  bigint        ;
-						   DECLARE @OldTypeStoragelocationName    nvarchar(300)	;
-						   DECLARE @OldSysTypeStoragelocationName nvarchar(300)	;
-						   DECLARE @OldDescription                nvarchar(4000);
-
-                           DECLARE @NewId_Status                  bigint        ;
-						   DECLARE @NewTypeStoragelocationName    nvarchar(300)	;
-						   DECLARE @NewSysTypeStoragelocationName nvarchar(300)	;
-						   DECLARE @NewDescription                nvarchar(4000);
-                       
-					       declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-							                SELECT 
-                                                  @NewId_Status                  = I.Id_Status                 ,
-												  @NewTypeStoragelocationName    = I.TypeStoragelocationName   ,
-												  @NewSysTypeStoragelocationName = I.SysTypeStoragelocationName,            
-												  @NewDescription                = I.[Description]      	  
-							                FROM inserted I									 
-							                where @ID_entity_D = I.Id_Status;	
-
-							                SELECT   
-                                                  @OldId_Status                  = D.Id_Status                 ,
-												  @OldTypeStoragelocationName    = D.TypeStoragelocationName   ,
-												  @OldSysTypeStoragelocationName = D.SysTypeStoragelocationName,            
-												  @OldDescription                = D.[Description]      		  
-							                FROM Deleted D																		 
-											 where @ID_entity_D = D.Id_Status; 
-
-
-                                            IF @NewTypeStoragelocationName <> @OldTypeStoragelocationName
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  TypeStoragelocationName = Old ->"' +  ISNULL(@OldTypeStoragelocationName,'') + ' " NEW -> " ' + isnull(@NewTypeStoragelocationName,'') + '", ';
-							                   end
-                                            
-							                IF @NewSysTypeStoragelocationName <> @OldSysTypeStoragelocationName 
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysTypeStoragelocationName = Old ->"' +  ISNULL(@OldSysTypeStoragelocationName,'') + ' " NEW -> " ' + isnull(@NewSysTypeStoragelocationName,'') + '", ';
-							                   end
-                                                                                                    
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            
-                                            SET @ChangeDescription = 'Updated: ' + ' Id_Status = "' +  isnull(cast(@OldId_Status as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                            
-                                            INSERT  INTO dbo.Storage_location_status_Audit
-                                            ( 
-                                             Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null 
-
-								   end try
-								   begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr                               					
-                END
-            ELSE
-                BEGIN
-				            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Status,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-                           DECLARE @OldId_Status_2                  bigint        ;
-						   DECLARE @OldTypeStoragelocationName_2    nvarchar(300)	;
-						   DECLARE @OldSysTypeStoragelocationName_2 nvarchar(300)	;
-						   DECLARE @OldDescription_2                nvarchar(4000);
-
-                            declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						        begin
-							       begin try
-							               SELECT 
-                                                  @OldId_Status_2                  = D.Id_Status                 ,
-												  @OldTypeStoragelocationName_2    = D.TypeStoragelocationName   ,
-												  @OldSysTypeStoragelocationName_2 = D.SysTypeStoragelocationName,            
-												  @OldDescription_2                = D.[Description]        	
-							               FROM deleted D									 
-										   where @ID_entity_D_2 = D.Id_Status;
-
-                                           SET @ChangeDescription = 'Deleted: '
-							               + 'Id_Status'                  +' = "'+  ISNULL(CAST(@OldId_Status_2  AS NVARCHAR(50)),'')+ '", '
-							               + 'TypeStoragelocationName'    +' = "'+  ISNULL(@OldTypeStoragelocationName_2,'')+ '", '
-							               + 'SysTypeStoragelocationName' +' = "'+  ISNULL(@OldSysTypeStoragelocationName_2,'')+ '", '
-							               + '[Description]'              +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
-
-                                           IF LEN(@ChangeDescription) > 0
-                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                           INSERT  INTO dbo.Storage_location_status_Audit
-                                           ( 
-                                            Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									       set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-
-
-                END  
-        END
-    ELSE
-        BEGIN
-		           declare @t_I_I table 
-				   (
-				   Id_Num         bigint        identity(1,1) not null,
-				   ID_entity      bigint        null,
-				   login_name     nvarchar(128) null,
-				   ModifiedDate   DATETIME      null,
-				   Name_action    char(1)       null
-				   );
-
-
-				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-				   SELECT I.Id_Status,@login_name,GETDATE(),'I'  
-				   FROM  inserted I
-
-				   DECLARE @ID_entity_I_2    bigint       ;
-				   DECLARE @login_name_2_I_2 nvarchar(128);
-				   DECLARE @ModifiedDate_I_2 DATETIME     ;
-				   DECLARE @Name_action_I_2  char(1)      ;
-		 
-		           declare cr_3 cursor local fast_forward for
-						   
-				   select 
-				   ID_entity   
-				   ,login_name  
-				   ,ModifiedDate
-				   ,Name_action 
-				   from @t_I_I 
-                      open cr_3       
-				   
-				   fetch next from cr_3 into 
-				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-				   while @@FETCH_STATUS  = 0
-						  begin
-							   begin try
-                                     SET @ChangeDescription = 'Inserted: '
-                                         + 'Id_Status = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                      INSERT  INTO dbo.Storage_location_status_Audit
-                                      ( 
-                                       Id_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                      )
-                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									 set @ChangeDescription = null              
-
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-                    END
-
-GO
-
-CREATE TABLE Item_status_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    Id_Item_Status         bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)         null
- --   PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_Item_status_Audit ON Item_status
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-				           declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Item_Status,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Item_Status,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                                          	                      
-
-						   DECLARE @OldId_Item_Status          bigint        ;
-						   DECLARE @OldItemStatus              nvarchar(300) ;
-						   DECLARE @OldSysItemStatusName       nvarchar(300) ;
-						   DECLARE @OldDescription      	   nvarchar(4000);
-
-
-						   DECLARE @NewId_Item_Status           bigint        ;
-						   DECLARE @NewItemStatus               nvarchar(300) ;
-						   DECLARE @NewSysItemStatusName        nvarchar(300) ;
-						   DECLARE @NewDescription      	    nvarchar(4000);
-                       
-					       declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-							                SELECT 
-                                                  @NewId_Item_Status        = I.Id_Item_Status   ,
-							                	  @NewItemStatus       	    = I.ItemStatus       ,
-							                	  @NewSysItemStatusName  	= I.SysItemStatusName,
-							                	  @NewDescription      	    = I.[Description]      	
-							                FROM inserted I									 
-							                where @ID_entity_D = I.Id_Item_Status;	
-
-							                SELECT 
-                                                  @OldId_Item_Status        = D.Id_Item_Status   ,
-							                	  @OldItemStatus        	= D.ItemStatus       ,
-							                	  @OldSysItemStatusName 	= D.SysItemStatusName,
-							                	  @OldDescription      	    = D.[Description]      	
-							                FROM Deleted D																		 
-											 where @ID_entity_D = D.Id_Item_Status; 
-
-
-                                            IF @NewItemStatus <> @OldItemStatus 
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  ItemStatus = Old ->"' +  ISNULL(@OldItemStatus,'') + ' " NEW -> " ' + isnull(@NewItemStatus,'') + '", ';
-							                   end
-                                            
-							                IF @NewSysItemStatusName <> @OldSysItemStatusName 
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysItemStatusName = Old ->"' +  ISNULL(@OldSysItemStatusName,'') + ' " NEW -> " ' + isnull(@NewSysItemStatusName,'') + '", ';
-							                   end
-                                                                                                    
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            
-                                            SET @ChangeDescription = 'Updated: ' + ' Id_Item_Status = "' +  isnull(cast(@OldId_Item_Status as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                            
-                                            INSERT  INTO dbo.Item_status_Audit
-                                            ( 
-                                             Id_Item_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null 
-
-								   end try
-								   begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr                               					
-                END
-            ELSE
-                BEGIN
-				            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.Id_Item_Status,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-                           DECLARE @OldId_Item_Status_2          bigint        ;
-						   DECLARE @OldItemStatus_2              nvarchar(300) ;
-						   DECLARE @OldSysItemStatusName_2       nvarchar(300) ;
-						   DECLARE @OldDescription_2      	     nvarchar(4000);
-
-                            declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						        begin
-							       begin try
-							               SELECT 
-										      @OldId_Item_Status_2        = D.Id_Item_Status   ,
-											  @OldItemStatus_2        	  = D.ItemStatus       ,
-											  @OldSysItemStatusName_2 	  = D.SysItemStatusName,
-							               	  @OldDescription_2      	  = D.[Description]      		  
-							               FROM deleted D									 
-										   where @ID_entity_D_2 = D.Id_Item_Status;
-
-                                           SET @ChangeDescription = 'Deleted: '
-							               + 'Id_Item_Status'       +' = "'+  ISNULL(CAST(@OldId_Item_Status_2  AS NVARCHAR(50)),'')+ '", '
-							               + 'ItemStatus'           +' = "'+  ISNULL(@OldItemStatus_2,'')+ '", '
-							               + 'SysItemStatusName'    +' = "'+  ISNULL(@OldSysItemStatusName_2,'')+ '", '
-							               + '[Description]'        +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
-
-                                           IF LEN(@ChangeDescription) > 0
-                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                           INSERT  INTO dbo.Item_status_Audit
-                                           ( 
-                                            Id_Item_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									       set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-
-
-                END  
-        END
-    ELSE
-        BEGIN
-		           declare @t_I_I table 
-				   (
-				   Id_Num         bigint        identity(1,1) not null,
-				   ID_entity      bigint        null,
-				   login_name     nvarchar(128) null,
-				   ModifiedDate   DATETIME      null,
-				   Name_action    char(1)       null
-				   );
-
-
-				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-				   SELECT I.Id_Item_Status,@login_name,GETDATE(),'I'  
-				   FROM  inserted I
-
-				   DECLARE @ID_entity_I_2    bigint       ;
-				   DECLARE @login_name_2_I_2 nvarchar(128);
-				   DECLARE @ModifiedDate_I_2 DATETIME     ;
-				   DECLARE @Name_action_I_2  char(1)      ;
-		 
-		           declare cr_3 cursor local fast_forward for
-						   
-				   select 
-				   ID_entity   
-				   ,login_name  
-				   ,ModifiedDate
-				   ,Name_action 
-				   from @t_I_I 
-                      open cr_3       
-				   
-				   fetch next from cr_3 into 
-				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-				   while @@FETCH_STATUS  = 0
-						  begin
-							   begin try
-                                     SET @ChangeDescription = 'Inserted: '
-                                         + 'Id_Item_Status = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                      INSERT  INTO dbo.Item_status_Audit
-                                      ( 
-                                       Id_Item_Status,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                      )
-                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									 set @ChangeDescription = null              
-
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-                    END
-
-GO
-
-CREATE TABLE Species_Item_Audit
-(
-    AuditID                bigint IDENTITY(1,1)  not null,
-    ID_Species_Item          bigint                null,
- 	ModifiedBy             nVARCHAR(128)         null,
-    ModifiedDate           DATETIME              NOT NULL DEFAULT GETDATE(),
-	Operation              CHAR(1)               null,
-    ChangeDescription      nvarchar(max)         null
- --   PRIMARY KEY CLUSTERED ( AuditID ) 
-) on Products_Group;
-
-
-go
-
-CREATE TRIGGER trg_Species_Item_Audit ON Species_Item
-AFTER INSERT, UPDATE, DELETE
-
-AS
-    set nocount,xact_abort on;
-
-    DECLARE @login_name nVARCHAR(128) 
-	DECLARE @ChangeDescription nvarchar(max);
-
-
-    SELECT  @login_name = login_name
-    FROM    sys.dm_exec_sessions
-    WHERE   session_id = @@SPID
-
-    IF EXISTS ( SELECT 0 FROM Deleted )
-        BEGIN
-            IF EXISTS ( SELECT 0 FROM Inserted )
-                BEGIN
-				           declare @t_U_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							declare @t_U_I table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-							insert into @t_U_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Species_Item,@login_name,GETDATE(),'U'  
-							FROM  Deleted D
-
-							insert into @t_U_I (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Species_Item,@login_name,GETDATE(),'U'  
-							FROM  inserted D
- 
-							DECLARE @ID_entity_D    bigint       ;
-							DECLARE @login_name_2_D nvarchar(128);
-							DECLARE @ModifiedDate_D DATETIME     ;
-							DECLARE @Name_action_D  char(1)      ;
- 
-							DECLARE @ID_entity_I    bigint       ;
-							DECLARE @login_name_2_I nvarchar(128);
-							DECLARE @ModifiedDate_I DATETIME     ;
-							DECLARE @Name_action_I  char(1)      ;
-                                          	                      
-
-						   DECLARE @OldID_Species_Item         bigint           ;
-						   DECLARE @OldSpeciesItemName    	   nvarchar(300)  	;
-						   DECLARE @OldSysSpeciesItemName 	   nvarchar(300) 	;
-						   DECLARE @OldDescription      	   nvarchar(4000)	;
-
-
-						   DECLARE @NewID_Species_Item          bigint          ;
-						   DECLARE @NewSpeciesItemName    	 	nvarchar(300)  	;
-						   DECLARE @NewSysSpeciesItemName 		nvarchar(300) 	;
-						   DECLARE @NewDescription      	    nvarchar(4000)	;
-                       
-					       declare cr cursor local fast_forward for
-						   
-						   select 
-						   ID_entity    
-						   ,login_name   
-						   ,ModifiedDate 
-						   ,Name_action  
-						   from @t_U_D 
-                           open cr       
-						   
-						   fetch next from cr into 
-						   @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D 
-						   while @@FETCH_STATUS  = 0
-						       begin
-							      begin try
-							                SELECT 
-                                                  @NewID_Species_Item       = I.ID_Species_Item   ,
-							                	  @NewSpeciesItemName    	= I.SpeciesItemName   ,
-							                	  @NewSysSpeciesItemName 	= I.SysSpeciesItemName,
-							                	  @NewDescription      	    = I.[Description]      	
-							                FROM inserted I									 
-							                where @ID_entity_D = I.ID_Species_Item;	
-
-							                SELECT 
-                                                  @OldID_Species_Item       = D.ID_Species_Item   ,
-							                	  @OldSpeciesItemName    	= D.SpeciesItemName   ,
-							                	  @OldSysSpeciesItemName 	= D.SysSpeciesItemName,
-							                	  @OldDescription      	    = D.[Description]      	
-							                FROM Deleted D																		 
-											 where @ID_entity_D = D.ID_Species_Item; 
-
-
-                                            IF @NewSpeciesItemName <> @OldSpeciesItemName 
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SpeciesItemName = Old ->"' +  ISNULL(@OldSpeciesItemName,'') + ' " NEW -> " ' + isnull(@NewSpeciesItemName,'') + '", ';
-							                   end
-                                            
-							                IF @NewSysSpeciesItemName <> @OldSysSpeciesItemName 
-							                   begin
-							                    SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  SysSpeciesItemName = Old ->"' +  ISNULL(@OldSysSpeciesItemName,'') + ' " NEW -> " ' + isnull(@NewSysSpeciesItemName,'') + '", ';
-							                   end
-                                                                                                    
-                                            IF @NewDescription <> @OldDescription
-							                   begin
-                                                SET @ChangeDescription = '' + isnull(@ChangeDescription,'') + '  Description = Old ->"' + ISNULL(@OldDescription,'') + ' " NEW -> " ' + ISNULL(@NewDescription,'') + '", ';
-                                               end
-                                            
-                                            SET @ChangeDescription = 'Updated: ' + ' ID_Species_Item = "' +  isnull(cast(@OldID_Species_Item as nvarchar(20)),'')+ '" ' + @ChangeDescription
-                                             --Удаляем запятую на конце
-                                            IF LEN(@ChangeDescription) > 0
-                                                SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-                                            
-                                            INSERT  INTO dbo.Species_Item_Audit
-                                            ( 
-                                             ID_Species_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                            )
-                                            SELECT  @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D,@ChangeDescription;              
-                                     
-									        set @ChangeDescription = null 
-
-								   end try
-								   begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_U_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_U_D,
-									   ERROR_STATE() as ErrorState_U_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_U_D,
-									   ERROR_LINE() as ErrorLine_U_D,
-									   ERROR_MESSAGE() as ErrorMessage_U_D;
-								  end catch;
-							     fetch next from cr into 
-								 @ID_entity_D,@login_name_2_D,@ModifiedDate_D,@Name_action_D
-						         end
-						   close cr
-                           deallocate cr                               					
-                END
-            ELSE
-                BEGIN
-				            declare @t_D_D table 
-							(
-							Id_Num         bigint        identity(1,1) not null,
-							ID_entity      bigint        null,
-							login_name     nvarchar(128) null,
-							ModifiedDate   DATETIME      null,
-							Name_action    char(1)       null
-							);
-
-					        insert into @t_D_D (ID_entity,login_name,ModifiedDate,Name_action)
-							SELECT d.ID_Species_Item,@login_name,GETDATE(),'D'  
-							FROM  Deleted D
-
-
-							DECLARE @ID_entity_D_2    bigint       ;
-							DECLARE @login_name_2_D_2 nvarchar(128);
-							DECLARE @ModifiedDate_D_2 DATETIME     ;
-							DECLARE @Name_action_D_2  char(1)      ;
-
-						   DECLARE @OldID_Species_Item_2           bigint           ;
-						   DECLARE @OldSpeciesItemName_2    	   nvarchar(300)  	;
-						   DECLARE @OldSysSpeciesItemName_2 	   nvarchar(300) 	;
-						   DECLARE @OldDescription_2      	       nvarchar(4000)	;
-
-                            declare cr_2 cursor local fast_forward for
-						   
-						    select 
-						    ID_entity   
-						    ,login_name  
-						    ,ModifiedDate
-						    ,Name_action 
-						    from @t_D_D 
-                            open cr_2       
-						    
-						    fetch next from cr_2 into 
-						    @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2 
-						    while @@FETCH_STATUS  = 0
-						        begin
-							       begin try
-							               SELECT 
-										      @OldID_Species_Item_2       = D.ID_Species_Item   ,
-											  @OldSpeciesItemName_2    	  = D.SpeciesItemName   ,
-											  @OldSysSpeciesItemName_2 	  = D.SysSpeciesItemName,
-							               	  @OldDescription_2      	  = D.[Description]      		  
-							               FROM deleted D									 
-										   where @ID_entity_D_2 = D.ID_Species_Item;
-
-                                           SET @ChangeDescription = 'Deleted: '
-							               + 'ID_Species_Item'       +' = "'+  ISNULL(CAST(@OldID_Species_Item_2  AS NVARCHAR(50)),'')+ '", '
-							               + 'SpeciesItemName'       +' = "'+  ISNULL(@OldSpeciesItemName_2,'')+ '", '
-							               + 'SysSpeciesItemName'    +' = "'+  ISNULL(@OldSysSpeciesItemName_2,'')+ '", '
-							               + '[Description]'         +' = "'+  ISNULL(@OldDescription_2,'')+ '", '
-
-                                           IF LEN(@ChangeDescription) > 0
-                                                  SET @ChangeDescription = LEFT(@ChangeDescription, LEN(@ChangeDescription) - 1);
-
-                                           INSERT  INTO dbo.Species_Item_Audit
-                                           ( 
-                                            ID_Species_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                           )
-                                            SELECT  @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2,@ChangeDescription;              
-                                     
-									       set @ChangeDescription = null
-
-								  end try
-								  begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_D_D,
-									   ERROR_SEVERITY() AS ErrorSeverity_D_D,
-									   ERROR_STATE() as ErrorState_D_D,
-									   ERROR_PROCEDURE() as ErrorProcedure_D_D,
-									   ERROR_LINE() as ErrorLine_D_D,
-									   ERROR_MESSAGE() as ErrorMessage_D_D;
-								  end catch;
-							     fetch next from cr_2 into 
-								 @ID_entity_D_2,@login_name_2_D_2,@ModifiedDate_D_2,@Name_action_D_2
-						         end
-						   close cr_2
-                           deallocate cr_2
-
-
-                END  
-        END
-    ELSE
-        BEGIN
-		           declare @t_I_I table 
-				   (
-				   Id_Num         bigint        identity(1,1) not null,
-				   ID_entity      bigint        null,
-				   login_name     nvarchar(128) null,
-				   ModifiedDate   DATETIME      null,
-				   Name_action    char(1)       null
-				   );
-
-
-				   insert into @t_I_I (ID_entity,login_name,ModifiedDate,Name_action)
-				   SELECT I.ID_Species_Item,@login_name,GETDATE(),'I'  
-				   FROM  inserted I
-
-				   DECLARE @ID_entity_I_2    bigint       ;
-				   DECLARE @login_name_2_I_2 nvarchar(128);
-				   DECLARE @ModifiedDate_I_2 DATETIME     ;
-				   DECLARE @Name_action_I_2  char(1)      ;
-		 
-		           declare cr_3 cursor local fast_forward for
-						   
-				   select 
-				   ID_entity   
-				   ,login_name  
-				   ,ModifiedDate
-				   ,Name_action 
-				   from @t_I_I 
-                      open cr_3       
-				   
-				   fetch next from cr_3 into 
-				   @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2 
-				   while @@FETCH_STATUS  = 0
-						  begin
-							   begin try
-                                     SET @ChangeDescription = 'Inserted: '
-                                         + 'ID_Species_Item = "' + CAST(@ID_entity_I_2 AS NVARCHAR(20)) + '" ';
-                    
-                                      INSERT  INTO dbo.Species_Item_Audit
-                                      ( 
-                                       ID_Species_Item,ModifiedBy,ModifiedDate,Operation,ChangeDescription                
-                                      )
-                                       SELECT  @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2,@ChangeDescription;              
-                                     
-									 set @ChangeDescription = null              
-
-								end try
-								begin catch
-								     if xact_state() in (1, -1)
-									    begin
-									       ROLLBACK TRAN
-									    end
-								     SELECT 
-									   ERROR_NUMBER() AS ErrorNumber_I_I,
-									   ERROR_SEVERITY() AS ErrorSeverity_I_I,
-									   ERROR_STATE() as ErrorState_I_I,
-									   ERROR_PROCEDURE() as ErrorProcedure_I_I,
-									   ERROR_LINE() as ErrorLine_I_I,
-									   ERROR_MESSAGE() as ErrorMessage_I_I;
-								  end catch;
-							     fetch next from cr_3 into 
-								 @ID_entity_I_2,@login_name_2_I_2,@ModifiedDate_I_2,@Name_action_I_2
-						         end
-						   close cr_3
-                           deallocate cr_3
-                    END
-
-GO
-
 --rollback
 commit
 
