@@ -329,14 +329,15 @@ ID_OrderAssignment BIGINT          NOT NULL,                                    
 ID_OrderCategory   BIGINT          NOT NULL,                                           -- ID Категории заказа
 Date               datetime        not null default  getDate(),                        -- Дата создания заказа
 Payment_Date       datetime        null,                                               -- Дата Оплаты заказа
-Amount             float           null,                                               -- Сумма заказа
-AmountCurr         float           null,                                               -- Сумма заказа c начислением коммисии 
-AmountNDS          float           null,                                               -- Сумма заказа c начисленным НДС
-AmountCurrNDS      float           null,                                               -- Сумма заказа c начислением коммисии и НДС
+Amount             decimal(10,2)   null,                                               -- Сумма заказа
+AmountCurr         decimal(10,2)   null,                                               -- Сумма заказа c начислением коммисии 
+AmountNDS          decimal(10,2)   null,                                               -- Сумма заказа c начисленным НДС
+AmountCurrNDS      decimal(10,2)   null,                                               -- Сумма заказа c начислением коммисии и НДС
 Num                nvarchar(50)    not null,                                           -- Номер заказа
 [Description]      nvarchar(4000)  null,                                               -- Комментарий
 constraint  PK_ID_Orders               primary key (ID_Orders)
 )  on Orders_Group
+
 go
 
 
@@ -411,7 +412,7 @@ CREATE TABLE Currency_Rate                                        -- Ставк�
 (
 ID_Currency_Rate        bigint          not null identity(1,1)  check(ID_Currency_Rate != 0),   -- ID Ставки  за период
 ID_Currency             bigint          not null,                                               -- ID Валюты                                                          
-Amount_Rate             float           not null,                                               -- Сумма ставки одной  ед в рублях, за текущий период
+Amount_Rate             decimal(5,2)    not null,                                               -- Сумма ставки одной  ед в рублях, за текущий период
 Valid_from              datetime        not null,                                               -- Сумма ставки с момента.
 Valid_to                datetime        not null,                                               -- Сумма ставки до момента.
 JSON_Currency_Rate_Data nvarchar(max)   null      check(isjson(JSON_Currency_Rate_Data)>0),		-- JSON Данные приходящие из стороннего ресурса
@@ -430,7 +431,7 @@ Transaction_Date                datetime        not null  default GetDate(),    
 KeySource                       bigint          null,                                                     -- Источник ключа с другими БД или сервисами
 Transaction_name_sender         nvarchar(500)   not null,                                                 -- Наименование отправителя
 JSON_Transaction_sender         nvarchar(max)   null      check(isjson(JSON_Transaction_sender)>0),		  -- JSON Данные от сервиса отправителя
-Transaction_Amount              float           not null,												  -- Сумма транзакции
+Transaction_Amount              decimal(10,2)   not null,												  -- Сумма транзакции
 [Description]                   nvarchar(4000)  null 													  -- Комментарий
 constraint PK_ID_Transaction                     primary key (ID_Transaction)
 )  on Products_Group
@@ -573,14 +574,14 @@ ID_Storage_location       bigint          not null,                             
 KeySource                 bigint          null,                                                   -- Источник ключа с другими БД или сервисами
 Serial_number             nvarchar(500)   not null,                                               -- Серийный номер экземпляра товара
 ID_Condition_of_the_item  bigint          not null,                                               -- ID Текущего состояния экземпляра
-Old_Price_no_NDS          float           not null,                                               -- Цена без НДС экземпляра
+Old_Price_no_NDS          decimal(10,2)   not null,                                               -- Цена без НДС экземпляра
 Refund                    bit             not null,                                               -- Был ли возврат данного экземпляра или нет. 0/1
 Date_Refund               datetime        null,                                                   -- Дата возврата
 Return_Note               nvarchar(4000)  null,                                                   -- Записка(Примечание) о возврате
-Old_Price_NDS             float           not null,                                               -- Цена экземпляра с НДС
+Old_Price_NDS             decimal(10,2)   not null,                                               -- Цена экземпляра с НДС
 JSON_Size_Volume          nvarchar(max)   null      check(isjson(JSON_Size_Volume)>0),            -- Данный JSON параметры самого экземпляра
-New_Price_NDS             float           not null,                                               -- Цена экземпляра с НДС после начисления коммисии  за  сервис
-New_Price_no_NDS          float           not null,                                               -- Цена экземпляра без НДС после начисления коммисии  за  сервис
+New_Price_NDS             decimal(10,2)   not null,                                               -- Цена экземпляра с НДС после начисления коммисии  за  сервис
+New_Price_no_NDS          decimal(10,2)   not null,                                               -- Цена экземпляра без НДС после начисления коммисии  за  сервис
 Date_Created              datetime        not null  default GetDate(),                            -- Дата внесения экземпляра в систему
 [Description]             nvarchar(4000)  null                                                    -- Комментарий
 constraint PK_ID_Exemplar              primary key (ID_Exemplar)
@@ -3947,7 +3948,7 @@ AS
                           
 							DECLARE @OldID_Currency_Rate        bigint          ;
 							DECLARE @OldID_Currency             bigint       	;
-							DECLARE @OldAmount_Rate             float        	;
+							DECLARE @OldAmount_Rate             decimal(5,2)    ;
 							DECLARE @OldValid_from              datetime     	;
 							DECLARE @OldValid_to                datetime     	;
 							DECLARE @OldJSON_Currency_Rate_Data nvarchar(max)	;
@@ -3955,7 +3956,7 @@ AS
 
 							DECLARE @NewID_Currency_Rate        bigint          ;
 							DECLARE @NewID_Currency             bigint       	;
-							DECLARE @NewAmount_Rate             float        	;
+							DECLARE @NewAmount_Rate             decimal(5,2)    ;
 							DECLARE @NewValid_from              datetime     	;
 							DECLARE @NewValid_to                datetime     	;
 							DECLARE @NewJSON_Currency_Rate_Data nvarchar(max)	;
@@ -4089,7 +4090,7 @@ AS
 
 							DECLARE @OldID_Currency_Rate_2        bigint          ;
 							DECLARE @OldID_Currency_2             bigint       	  ;
-							DECLARE @OldAmount_Rate_2             float        	  ;
+							DECLARE @OldAmount_Rate_2             decimal(5,2)    ;
 							DECLARE @OldValid_from_2              datetime     	  ;
 							DECLARE @OldValid_to_2                datetime     	  ;
 							DECLARE @OldJSON_Currency_Rate_Data_2 nvarchar(max)	  ;
@@ -5624,14 +5625,14 @@ AS
 						   DECLARE @OldKeySource                  bigint         ;
 						   DECLARE @OldSerial_number              nvarchar(500)  ;
 						   DECLARE @OldID_Condition_of_the_item   bigint         ;
-						   DECLARE @OldOld_Price_no_NDS           float          ;
+						   DECLARE @OldOld_Price_no_NDS           decimal(10,2)  ;
 						   DECLARE @OldRefund                     bit            ;
 						   DECLARE @OldDate_Refund                datetime       ;
 						   DECLARE @OldReturn_Note                nvarchar(4000) ;
-						   DECLARE @OldOld_Price_NDS              float          ;
+						   DECLARE @OldOld_Price_NDS              decimal(10,2)  ;
 						   DECLARE @OldJSON_Size_Volume           nvarchar(max)  ;
-						   DECLARE @OldNew_Price_NDS              float          ;
-						   DECLARE @OldNew_Price_no_NDS           float          ;
+						   DECLARE @OldNew_Price_NDS              decimal(10,2)  ;
+						   DECLARE @OldNew_Price_no_NDS           decimal(10,2)  ;
 						   DECLARE @OldDate_Created               datetime       ;
 						   DECLARE @OldDescription                nvarchar(4000) ;
 
@@ -5642,14 +5643,14 @@ AS
 						   DECLARE @NewKeySource                  bigint         ;
 						   DECLARE @NewSerial_number              nvarchar(500)  ;
 						   DECLARE @NewID_Condition_of_the_item   bigint         ;
-						   DECLARE @NewOld_Price_no_NDS           float          ;
+						   DECLARE @NewOld_Price_no_NDS           decimal(10,2)  ;
 						   DECLARE @NewRefund                     bit            ;
 						   DECLARE @NewDate_Refund                datetime       ;
 						   DECLARE @NewReturn_Note                nvarchar(4000) ;
-						   DECLARE @NewOld_Price_NDS              float          ;
+						   DECLARE @NewOld_Price_NDS              decimal(10,2)  ;
 						   DECLARE @NewJSON_Size_Volume           nvarchar(max)  ;
-						   DECLARE @NewNew_Price_NDS              float          ;
-						   DECLARE @NewNew_Price_no_NDS           float          ;
+						   DECLARE @NewNew_Price_NDS              decimal(10,2)  ;
+						   DECLARE @NewNew_Price_no_NDS           decimal(10,2)  ;
 						   DECLARE @NewDate_Created               datetime       ;
 						   DECLARE @NewDescription                nvarchar(4000) ;
 
@@ -5854,14 +5855,14 @@ AS
 						   DECLARE @OldKeySource_2                  bigint         ;
 						   DECLARE @OldSerial_number_2              nvarchar(500)  ;
 						   DECLARE @OldID_Condition_of_the_item_2   bigint         ;
-						   DECLARE @OldOld_Price_no_NDS_2           float          ;
+						   DECLARE @OldOld_Price_no_NDS_2           decimal(10,2)  ;
 						   DECLARE @OldRefund_2                     bit            ;
 						   DECLARE @OldDate_Refund_2                datetime       ;
 						   DECLARE @OldReturn_Note_2                nvarchar(4000) ;
-						   DECLARE @OldOld_Price_NDS_2              float          ;
+						   DECLARE @OldOld_Price_NDS_2              decimal(10,2)  ;
 						   DECLARE @OldJSON_Size_Volume_2           nvarchar(max)  ;
-						   DECLARE @OldNew_Price_NDS_2              float          ;
-						   DECLARE @OldNew_Price_no_NDS_2           float          ;
+						   DECLARE @OldNew_Price_NDS_2              decimal(10,2)  ;
+						   DECLARE @OldNew_Price_no_NDS_2           decimal(10,2)  ;
 						   DECLARE @OldDate_Created_2               datetime       ;
 						   DECLARE @OldDescription_2                nvarchar(4000) ;    	  	
 
@@ -7948,36 +7949,36 @@ AS
 							DECLARE @ModifiedDate_I DATETIME     ;
 							DECLARE @Name_action_I  char(1)      ;
 	                       
-						   DECLARE @OldID_Orders          bigint                ;
-						   DECLARE @OldID_status          bigint        		;
-						   DECLARE @OldID_TypeOrders      bigint        		;
-						   DECLARE @OldID_Currency        bigint        		;
-						   DECLARE @OldID_OrderAssignment bigint        		;
-						   DECLARE @OldID_OrderCategory	  bigint        		;
-						   DECLARE @OldDate               datetime      		;
-						   DECLARE @OldPayment_Date       datetime      		;
-						   DECLARE @OldAmount             float         		;
-						   DECLARE @OldAmountCurr         float         		;
-						   DECLARE @OldAmountNDS          float         		;
-						   DECLARE @OldAmountCurrNDS      float         		;
-						   DECLARE @OldNum                nvarchar(50)  		;
-						   DECLARE @OldDescription        nvarchar(4000)		;
+						   DECLARE @OldID_Orders          bigint        ;
+						   DECLARE @OldID_status          bigint        ;
+						   DECLARE @OldID_TypeOrders      bigint        ;
+						   DECLARE @OldID_Currency        bigint        ;
+						   DECLARE @OldID_OrderAssignment bigint        ;
+						   DECLARE @OldID_OrderCategory	  bigint        ;
+						   DECLARE @OldDate               datetime      ;
+						   DECLARE @OldPayment_Date       datetime      ;
+						   DECLARE @OldAmount             decimal(10,2) ;
+						   DECLARE @OldAmountCurr         decimal(10,2) ;
+						   DECLARE @OldAmountNDS          decimal(10,2) ;
+						   DECLARE @OldAmountCurrNDS      decimal(10,2) ;
+						   DECLARE @OldNum                nvarchar(50)  ;
+						   DECLARE @OldDescription        nvarchar(4000);
 
 
-						   DECLARE @NewID_Orders           bigint               ;
-						   DECLARE @NewID_status           bigint        		;
-						   DECLARE @NewID_TypeOrders       bigint        		;
-						   DECLARE @NewID_Currency         bigint        		;
-						   DECLARE @NewID_OrderAssignment  bigint        		;
-						   DECLARE @NewID_OrderCategory	   bigint        		;
-						   DECLARE @NewDate                datetime      		;
-						   DECLARE @NewPayment_Date        datetime      		;
-						   DECLARE @NewAmount              float         		;
-						   DECLARE @NewAmountCurr          float         		;
-						   DECLARE @NewAmountNDS           float         		;
-						   DECLARE @NewAmountCurrNDS       float         		;
-						   DECLARE @NewNum                 nvarchar(50)  		;
-						   DECLARE @NewDescription         nvarchar(4000)		;
+						   DECLARE @NewID_Orders           bigint        ;
+						   DECLARE @NewID_status           bigint        ;
+						   DECLARE @NewID_TypeOrders       bigint        ;
+						   DECLARE @NewID_Currency         bigint        ;
+						   DECLARE @NewID_OrderAssignment  bigint        ;
+						   DECLARE @NewID_OrderCategory	   bigint        ;
+						   DECLARE @NewDate                datetime      ;
+						   DECLARE @NewPayment_Date        datetime      ;
+						   DECLARE @NewAmount              decimal(10,2) ;
+						   DECLARE @NewAmountCurr          decimal(10,2) ;
+						   DECLARE @NewAmountNDS           decimal(10,2) ;
+						   DECLARE @NewAmountCurrNDS       decimal(10,2) ;
+						   DECLARE @NewNum                 nvarchar(50)  ;
+						   DECLARE @NewDescription         nvarchar(4000);
 						
                            declare cr cursor local fast_forward for
 						   
@@ -8156,10 +8157,10 @@ AS
 						    DECLARE @OldID_OrderCategory_2	  bigint        ;
 							DECLARE @OldDate_2                datetime      ;
 							DECLARE @OldPayment_Date_2        datetime      ;
-							DECLARE @OldAmount_2              float         ;
-							DECLARE @OldAmountCurr_2          float         ;
-							DECLARE @OldAmountNDS_2           float         ;
-							DECLARE @OldAmountCurrNDS_2       float         ;
+							DECLARE @OldAmount_2              decimal(10,2) ;
+							DECLARE @OldAmountCurr_2          decimal(10,2) ;
+							DECLARE @OldAmountNDS_2           decimal(10,2) ;
+							DECLARE @OldAmountCurrNDS_2       decimal(10,2) ;
 							DECLARE @OldNum_2                 nvarchar(50)  ;
 							DECLARE @OldDescription_2         nvarchar(4000);
 
@@ -11215,7 +11216,7 @@ AS
 							DECLARE @OldKeySource                       bigint       	;
 							DECLARE @OldTransaction_name_sender         nvarchar(500)	;
 							DECLARE @OldJSON_Transaction_sender         nvarchar(max)	;
-							DECLARE @OldTransaction_Amount              float        	;
+							DECLARE @OldTransaction_Amount              decimal(10,2)   ;
 							DECLARE @OldDescription                     nvarchar(4000)	;
 
 							DECLARE @NewID_Transaction                  bigint          ;
@@ -11226,7 +11227,7 @@ AS
 							DECLARE @NewKeySource                       bigint       	;
 							DECLARE @NewTransaction_name_sender         nvarchar(500)	;
 							DECLARE @NewJSON_Transaction_sender         nvarchar(max)	;
-							DECLARE @NewTransaction_Amount              float        	;
+							DECLARE @NewTransaction_Amount              decimal(10,2)   ;
 							DECLARE @NewDescription                     nvarchar(4000)	;
                             
 
@@ -11381,7 +11382,7 @@ AS
 							DECLARE @OldKeySource_2                       bigint       	  ;
 							DECLARE @OldTransaction_name_sender_2         nvarchar(500)	  ;
 							DECLARE @OldJSON_Transaction_sender_2         nvarchar(max)	  ;
-							DECLARE @OldTransaction_Amount_2              float        	  ;
+							DECLARE @OldTransaction_Amount_2              decimal(10,2)   ;
 							DECLARE @OldDescription_2                     nvarchar(4000)  ;
                             
 							declare cr_2 cursor local fast_forward for
