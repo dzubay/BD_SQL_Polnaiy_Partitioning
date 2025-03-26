@@ -225,10 +225,10 @@ ID_OrderAssignment BIGINT          NOT NULL,                                    
 ID_OrderCategory   BIGINT          NOT NULL,                                           -- ID Категории заказа
 Date               datetime        not null default  getDate(),                        -- Дата создания заказа
 Payment_Date       datetime        null,                                               -- Дата Оплаты заказа
-Amount             float           null,                                               -- Сумма заказа
-AmountCurr         float           null,                                               -- Сумма заказа c начислением коммисии 
-AmountNDS          float           null,                                               -- Сумма заказа c начисленным НДС
-AmountCurrNDS      float           null,                                               -- Сумма заказа c начислением коммисии и НДС
+Amount             decimal(10,2)   null,                                               -- Сумма заказа
+AmountCurr         decimal(10,2)   null,                                               -- Сумма заказа c начислением коммисии 
+AmountNDS          decimal(10,2)   null,                                               -- Сумма заказа c начисленным НДС
+AmountCurrNDS      decimal(10,2)   null,                                               -- Сумма заказа c начислением коммисии и НДС
 Num                nvarchar(50)    not null,                                           -- Номер заказа
 [Description]      nvarchar(4000)  null,                                               -- Комментарий
 constraint  PK_ID_Orders               primary key (ID_Orders)
@@ -309,7 +309,7 @@ CREATE TABLE Currency_Rate                                        -- Ставк�
 (
 ID_Currency_Rate        bigint          not null identity(1,1)  check(ID_Currency_Rate != 0),   -- ID Ставки  за период
 ID_Currency             bigint          not null,                                               -- ID Валюты                                                          
-Amount_Rate             float           not null,                                               -- Сумма ставки одной  ед в рублях, за текущий период
+Amount_Rate             decimal(5,2)    not null,                                               -- Сумма ставки одной  ед в рублях, за текущий период
 Valid_from              datetime        not null,                                               -- Сумма ставки с момента.
 Valid_to                datetime        not null,                                               -- Сумма ставки до момента.
 JSON_Currency_Rate_Data nvarchar(max)   null      check(isjson(JSON_Currency_Rate_Data)>0),		-- JSON Данные приходящие из стороннего ресурса
@@ -328,7 +328,7 @@ Transaction_Date                datetime        not null  default GetDate(),    
 KeySource                       bigint          null,                                                     -- Источник ключа с другими БД или сервисами
 Transaction_name_sender         nvarchar(500)   not null,                                                 -- Наименование отправителя
 JSON_Transaction_sender         nvarchar(max)   null      check(isjson(JSON_Transaction_sender)>0),		  -- JSON Данные от сервиса отправителя
-Transaction_Amount              float           not null,												  -- Сумма транзакции
+Transaction_Amount              decimal(10,2)   not null,												  -- Сумма транзакции
 [Description]                   nvarchar(4000)  null 													  -- Комментарий
 constraint PK_ID_Transaction                     primary key (ID_Transaction)
 )  on Products_Group
@@ -471,14 +471,14 @@ ID_Storage_location       bigint          not null,                             
 KeySource                 bigint          null,                                                   -- Источник ключа с другими БД или сервисами
 Serial_number             nvarchar(500)   not null,                                               -- Серийный номер экземпляра товара
 ID_Condition_of_the_item  bigint          not null,                                               -- ID Текущего состояния экземпляра
-Old_Price_no_NDS          float           not null,                                               -- Цена без НДС экземпляра
+Old_Price_no_NDS          decimal(10,2)   not null,                                               -- Цена без НДС экземпляра
 Refund                    bit             not null,                                               -- Был ли возврат данного экземпляра или нет. 0/1
 Date_Refund               datetime        null,                                                   -- Дата возврата
 Return_Note               nvarchar(4000)  null,                                                   -- Записка(Примечание) о возврате
-Old_Price_NDS             float           not null,                                               -- Цена экземпляра с НДС
+Old_Price_NDS             decimal(10,2)   not null,                                               -- Цена экземпляра с НДС
 JSON_Size_Volume          nvarchar(max)   null      check(isjson(JSON_Size_Volume)>0),            -- Данный JSON параметры самого экземпляра
-New_Price_NDS             float           not null,                                               -- Цена экземпляра с НДС после начисления коммисии  за  сервис
-New_Price_no_NDS          float           not null,                                               -- Цена экземпляра без НДС после начисления коммисии  за  сервис
+New_Price_NDS             decimal(10,2)   not null,                                               -- Цена экземпляра с НДС после начисления коммисии  за  сервис
+New_Price_no_NDS          decimal(10,2)   not null,                                               -- Цена экземпляра без НДС после начисления коммисии  за  сервис
 Date_Created              datetime        not null  default GetDate(),                            -- Дата внесения экземпляра в систему
 [Description]             nvarchar(4000)  null                                                    -- Комментарий
 constraint PK_ID_Exemplar              primary key (ID_Exemplar)
