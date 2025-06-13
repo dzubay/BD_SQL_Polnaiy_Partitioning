@@ -220,7 +220,7 @@ create table Orders                                                             
 ID_Orders          bigint          not null identity (1,1)  check(Id_Orders !=0),      -- ID заказа
 ID_status          bigint          not null,                                           -- ID статуса заказа
 ID_TypeOrders      bigint          not null,                                           -- ID Типа заказа
-ID_Currency        bigint          not null,                                           -- Валюта заказа
+ID_Currency        bigint          not null,                                           -- ID Валюта заказа
 ID_OrderAssignment BIGINT          NOT NULL,                                           -- ID_Принадлежности_заказа_к_системе
 ID_OrderCategory   BIGINT          NOT NULL,                                           -- ID Категории заказа
 Date               datetime        not null default  getDate(),                        -- Дата создания заказа
@@ -494,7 +494,7 @@ ID_Employee            bigint          not null,                                
 ID_Orders              bigint          not null,                                           -- ID Заказа
 Id_buyer               bigint          not null,	                                       -- ID Покупателя
 ID_Exemplar            bigint          not null,                                           -- ID Экземпляра
-ID_Transaction         bigint          not null,                                           -- ID Тразанкции
+ID_Transaction         bigint          null,                                               -- ID Тразанкции
 Date_Data_Orders       datetime        not null  default getdate(),                        -- Дата создания данныйх о заказе
 [Description]          nvarchar(4000)  null
 constraint PK_ID_Data_Orders                primary key (ID_Data_Orders) 
