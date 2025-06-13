@@ -108,10 +108,6 @@ go
 use Magaz_DB_Poln
 go
 
-
-use Magaz_DB_Poln
-go
-
 create table dbo.[Employees]                                   -- Сотрудник
 (
 ID_Employee                bigint         not null identity (1,1) check(ID_Employee !=0), -- ID Сотрудника
