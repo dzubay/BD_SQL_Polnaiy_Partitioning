@@ -108,6 +108,10 @@ go
 use Magaz_DB_Poln
 go
 
+
+use Magaz_DB_Poln
+go
+
 create table dbo.[Employees]                                   -- Сотрудник
 (
 ID_Employee                bigint         not null identity (1,1) check(ID_Employee !=0), -- ID Сотрудника
@@ -13155,7 +13159,7 @@ declare
 	 @Num_partition_4 DateTime = '31.12.2028 23:59:59.997',
 	 @Num_partition_5 DateTime = '31.12.2029 23:59:59.997'
 
-set  @PARTITION_Audit = N'd:\Программы\БД\Моя база данных\2024\Более новая БД\Файлы_БД_полной\Для_полной_БД_2025\PARTITION_Audit\' +  'PARTITION_Audit.ndf'
+set  @PARTITION_Audit = N'/var/opt/mssql/data/' +  'PARTITION_Audit.ndf'
 
 set  @SQl_script = '
 Alter database [Magaz_DB_Poln] add filegroup [PARTITION_Audit];
