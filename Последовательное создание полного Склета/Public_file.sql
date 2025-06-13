@@ -597,7 +597,7 @@ ID_Employee            bigint          not null,                                
 ID_Orders              bigint          not null,                                           -- ID Заказа
 Id_buyer               bigint          not null,	                                       -- ID Покупателя
 ID_Exemplar            bigint          not null,                                           -- ID Экземпляра
-ID_Transaction         bigint          not null,                                           -- ID Тразанкции
+ID_Transaction         bigint          null,                                               -- ID Тразанкции
 Date_Data_Orders       datetime        not null  default getdate(),                        -- Дата создания данныйх о заказе
 [Description]          nvarchar(4000)  null
 constraint PK_ID_Data_Orders                primary key (ID_Data_Orders) 
