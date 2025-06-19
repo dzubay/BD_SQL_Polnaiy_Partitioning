@@ -490,7 +490,7 @@ go
 create table  Data_Orders                                                    --Вспомогательная таблицца, данные о заказе
 (
 Id_Data_Orders         bigint          not null identity (1,1) check(ID_Data_Orders !=0),  -- ID данных о заказе
-ID_Employee            bigint          not null,                                           -- ID Сотрудника или бота
+ID_Employee            bigint          null,                                               -- ID Сотрудника или бота
 ID_Orders              bigint          not null,                                           -- ID Заказа
 Id_buyer               bigint          not null,	                                       -- ID Покупателя
 ID_Exemplar            bigint          not null,                                           -- ID Экземпляра
