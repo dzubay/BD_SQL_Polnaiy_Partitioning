@@ -22,8 +22,8 @@ id        bigint      not null identity(1,1)
 ,[Value]  int not null
 )
 insert into  ##Table values
-('Currency_Rate',150000),
-('Exemplar',30000);
+('Currency_Rate',150000),    -- Указываем ставку по валютам
+('Exemplar',30000);          -- Число экзепмпляров 
 
 
 declare @SQL_Cod nvarchar(max) -- В коде не должно быть комментариев, а то будут ошибка, или просто не сработает
@@ -13597,76 +13597,77 @@ CREATE TABLE Item_status_Audit_2
 ) on PARTITION_Audit;
 go
 
-create UNIQUE nonclustered index index_UNIQUE_Species_Item_Audit_2                  on Species_Item_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Item_status_Audit_2                   on Item_status_Audit_2(AuditID) 
-create UNIQUE nonclustered index index_UNIQUE_Buyer_Type_Audit_2                    on Buyer_Type_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Storage_location_status_Audit_2       on Storage_location_status_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Order_Assignment_Audit_2              on Order_Assignment_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Order_category_Audit_2                on Order_category_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Employees_Audit_2                     on Employees_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Department_Audit_2                    on Department_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Group_Audit_2                         on Group_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_The_Subgroup_Audit_2                  on The_Subgroup_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Passport_Audit_2                      on Passport_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Post_Audit_2                          on Post_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Status_Employee_Audit_2               on Status_Employee_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Connection_String_Audit_2             on Connection_String_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Branch_Audit_2                        on Branch_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Country_Audit_2                       on Country_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Buyer_Audit_2                         on Buyer_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Buyer_status_Audit_2                  on Buyer_status_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Condition_of_the_item_Audit_2         on Condition_of_the_item_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Connection_Buyer_Audit_2              on Connection_Buyer_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Currency_Audit_2                      on Currency_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Currency_Rate_Audit_2                 on Currency_Rate_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Data_Orders_Audit_2                   on Data_Orders_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Exemplar_Audit_2                      on Exemplar_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Item_Audit_2                          on Item_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Orders_Audit_2                        on Orders_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Orders_status_Audit_2                 on Orders_status_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Storage_location_Audit_2              on Storage_location_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_TRANSACTION_Audit_2                   on TRANSACTION_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Transaction_status_Audit_2            on Transaction_status_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Type_of_product_measurement_Audit_2   on Type_of_product_measurement_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Type_Storage_location_Audit_2         on Type_Storage_location_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_TypeItem_Audit_2                      on TypeItem_Audit_2(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_TypeOrders_Audit_2                    on TypeOrders_Audit_2(AuditID)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Species_Item_Audit_2                  on Species_Item_Audit_2(AuditID,ModifiedDate)                      on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Item_status_Audit_2                   on Item_status_Audit_2(AuditID,ModifiedDate) 						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Buyer_Type_Audit_2                    on Buyer_Type_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Storage_location_status_Audit_2       on Storage_location_status_Audit_2(AuditID,ModifiedDate)			on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Order_Assignment_Audit_2              on Order_Assignment_Audit_2(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Order_category_Audit_2                on Order_category_Audit_2(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Employees_Audit_2                     on Employees_Audit_2(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Department_Audit_2                    on Department_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Group_Audit_2                         on Group_Audit_2(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_The_Subgroup_Audit_2                  on The_Subgroup_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Passport_Audit_2                      on Passport_Audit_2(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Post_Audit_2                          on Post_Audit_2(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Status_Employee_Audit_2               on Status_Employee_Audit_2(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Connection_String_Audit_2             on Connection_String_Audit_2(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Branch_Audit_2                        on Branch_Audit_2(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Country_Audit_2                       on Country_Audit_2(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Buyer_Audit_2                         on Buyer_Audit_2(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Buyer_status_Audit_2                  on Buyer_status_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Condition_of_the_item_Audit_2         on Condition_of_the_item_Audit_2(AuditID,ModifiedDate)				on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Connection_Buyer_Audit_2              on Connection_Buyer_Audit_2(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Currency_Audit_2                      on Currency_Audit_2(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Currency_Rate_Audit_2                 on Currency_Rate_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Data_Orders_Audit_2                   on Data_Orders_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Exemplar_Audit_2                      on Exemplar_Audit_2(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Item_Audit_2                          on Item_Audit_2(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Orders_Audit_2                        on Orders_Audit_2(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Orders_status_Audit_2                 on Orders_status_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Storage_location_Audit_2              on Storage_location_Audit_2(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_TRANSACTION_Audit_2                   on TRANSACTION_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Transaction_status_Audit_2            on Transaction_status_Audit_2(AuditID,ModifiedDate)				on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Type_of_product_measurement_Audit_2   on Type_of_product_measurement_Audit_2(AuditID,ModifiedDate)		on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Type_Storage_location_Audit_2         on Type_Storage_location_Audit_2(AuditID,ModifiedDate)				on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_TypeItem_Audit_2                      on TypeItem_Audit_2(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_TypeOrders_Audit_2                    on TypeOrders_Audit_2(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
 
-create UNIQUE nonclustered index index_UNIQUE_Species_Item_Audit                    on Species_Item_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Item_status_Audit                     on Item_status_Audit(AuditID) 
-create UNIQUE nonclustered index index_UNIQUE_Buyer_Type_Audit                      on Buyer_Type_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Storage_location_status_Audit         on Storage_location_status_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Order_Assignment_Audit                on Order_Assignment_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Order_category_Audit                  on Order_category_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Employees_Audit                       on Employees_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Department_Audit                      on Department_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Group_Audit                           on Group_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_The_Subgroup_Audit                    on The_Subgroup_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Passport_Audit                        on Passport_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Post_Audit                            on Post_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Status_Employee_Audit                 on Status_Employee_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Connection_String_Audit               on Connection_String_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Branch_Audit                          on Branch_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Country_Audit                         on Country_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Buyer_Audit                           on Buyer_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Buyer_status_Audit                    on Buyer_status_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Condition_of_the_item_Audit           on Condition_of_the_item_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Connection_Buyer_Audit                on Connection_Buyer_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Currency_Audit                        on Currency_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Currency_Rate_Audit                   on Currency_Rate_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Data_Orders_Audit                     on Data_Orders_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Exemplar_Audit                        on Exemplar_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Item_Audit                            on Item_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Orders_Audit                          on Orders_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Orders_status_Audit                   on Orders_status_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Storage_location_Audit                on Storage_location_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_TRANSACTION_Audit                     on TRANSACTION_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Transaction_status_Audit              on Transaction_status_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Type_of_product_measurement_Audit     on Type_of_product_measurement_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_Type_Storage_location_Audit           on Type_Storage_location_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_TypeItem_Audit                        on TypeItem_Audit(AuditID)
-create UNIQUE nonclustered index index_UNIQUE_TypeOrders_Audit                      on TypeOrders_Audit(AuditID)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Species_Item_Audit                    on Species_Item_Audit(AuditID,ModifiedDate)                        on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Item_status_Audit                     on Item_status_Audit(AuditID,ModifiedDate) 						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Buyer_Type_Audit                      on Buyer_Type_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Storage_location_status_Audit         on Storage_location_status_Audit(AuditID,ModifiedDate)				on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Order_Assignment_Audit                on Order_Assignment_Audit(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Order_category_Audit                  on Order_category_Audit(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Employees_Audit                       on Employees_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Department_Audit                      on Department_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Group_Audit                           on Group_Audit(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_The_Subgroup_Audit                    on The_Subgroup_Audit(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Passport_Audit                        on Passport_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Post_Audit                            on Post_Audit(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Status_Employee_Audit                 on Status_Employee_Audit(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Connection_String_Audit               on Connection_String_Audit(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Branch_Audit                          on Branch_Audit(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Country_Audit                         on Country_Audit(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Buyer_Audit                           on Buyer_Audit(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Buyer_status_Audit                    on Buyer_status_Audit(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Condition_of_the_item_Audit           on Condition_of_the_item_Audit(AuditID,ModifiedDate)				on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Connection_Buyer_Audit                on Connection_Buyer_Audit(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Currency_Audit                        on Currency_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Currency_Rate_Audit                   on Currency_Rate_Audit(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Data_Orders_Audit                     on Data_Orders_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Exemplar_Audit                        on Exemplar_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Item_Audit                            on Item_Audit(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Orders_Audit                          on Orders_Audit(AuditID,ModifiedDate)								on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Orders_status_Audit                   on Orders_status_Audit(AuditID,ModifiedDate)						on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Storage_location_Audit                on Storage_location_Audit(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_TRANSACTION_Audit                     on TRANSACTION_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Transaction_status_Audit              on Transaction_status_Audit(AuditID,ModifiedDate)					on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Type_of_product_measurement_Audit     on Type_of_product_measurement_Audit(AuditID,ModifiedDate)			on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_Type_Storage_location_Audit           on Type_Storage_location_Audit(AuditID,ModifiedDate)				on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_TypeItem_Audit                        on TypeItem_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
+create UNIQUE nonclustered  index FULLTEXT_index_UNIQUE_TypeOrders_Audit                      on TypeOrders_Audit(AuditID,ModifiedDate)							on SH_PartFuncDate_left(ModifiedDate)
 
+go
 
 create clustered index index_Species_Item_Audit_2                  on Species_Item_Audit_2(ID_Species_Item,ModifiedDate)                       on SH_PartFuncDate_left(ModifiedDate)
 create clustered index index_Item_status_Audit_2                   on Item_status_Audit_2(Id_Item_Status,ModifiedDate)                         on SH_PartFuncDate_left(ModifiedDate)
@@ -13741,56 +13742,76 @@ create clustered index index_TypeOrders_Audit                      on TypeOrders
 
 go
 
-CREATE FULLTEXT CATALOG CATALOG_FULLTEXT AS DEFAULT; 
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Species_Item_Audit_2                  on Species_Item_Audit_2(ID_Species_Item,ModifiedDate)                       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Item_status_Audit_2                   on Item_status_Audit_2(Id_Item_Status,ModifiedDate)                         on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Buyer_Type_Audit_2                    on Buyer_Type_Audit_2(Id_Buyer_Type,ModifiedDate)                           on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Storage_location_status_Audit_2       on Storage_location_status_Audit_2(Id_Status,ModifiedDate)                  on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Order_Assignment_Audit_2              on Order_Assignment_Audit_2(ID_OrderAssignment,ModifiedDate)                on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Order_category_Audit_2                on Order_category_Audit_2(ID_OrderCategory,ModifiedDate)                    on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Employees_Audit_2                     on Employees_Audit_2(ID_Employee,ModifiedDate)                              on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Department_Audit_2                    on Department_Audit_2(ID_Department,ModifiedDate)                           on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Group_Audit_2                         on Group_Audit_2(ID_Group,ModifiedDate)                                     on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_The_Subgroup_Audit_2                  on The_Subgroup_Audit_2(ID_The_Subgroup,ModifiedDate)                       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Passport_Audit_2                      on Passport_Audit_2(ID_Passport,ModifiedDate)                               on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Post_Audit_2                          on Post_Audit_2(ID_Post,ModifiedDate)                                       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Status_Employee_Audit_2               on Status_Employee_Audit_2(ID_Status_Employee,ModifiedDate)                 on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Connection_String_Audit_2             on Connection_String_Audit_2(ID_Connection_String,ModifiedDate)             on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Branch_Audit_2                        on Branch_Audit_2(ID_Branch,ModifiedDate)                                   on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Country_Audit_2                       on Country_Audit_2(Id_Country,ModifiedDate)                                 on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Buyer_Audit_2                         on Buyer_Audit_2(Id_buyer,ModifiedDate)                                     on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Buyer_status_Audit_2                  on Buyer_status_Audit_2(Id_Status,ModifiedDate)                             on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Condition_of_the_item_Audit_2         on Condition_of_the_item_Audit_2(ID_Condition_of_the_item,ModifiedDate)     on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Connection_Buyer_Audit_2              on Connection_Buyer_Audit_2(ID_Connection_Buyer,ModifiedDate)               on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Currency_Audit_2                      on Currency_Audit_2(ID_Currency,ModifiedDate)                               on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Currency_Rate_Audit_2                 on Currency_Rate_Audit_2(ID_Currency_Rate,ModifiedDate)                     on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Data_Orders_Audit_2                   on Data_Orders_Audit_2(Id_Data_Orders,ModifiedDate)                         on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Exemplar_Audit_2                      on Exemplar_Audit_2(ID_Exemplar,ModifiedDate)                               on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Item_Audit_2                          on Item_Audit_2(Id_Item,ModifiedDate)                                       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Orders_Audit_2                        on Orders_Audit_2(ID_Orders,ModifiedDate)                                   on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Orders_status_Audit_2                 on Orders_status_Audit_2(Id_Status,ModifiedDate)                            on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Storage_location_Audit_2              on Storage_location_Audit_2(ID_Storage_location,ModifiedDate)               on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_TRANSACTION_Audit_2                   on TRANSACTION_Audit_2(ID_Transaction,ModifiedDate)                         on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Transaction_status_Audit_2            on Transaction_status_Audit_2(ID_Transaction_status,ModifiedDate)           on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Type_of_product_measurement_Audit_2   on Type_of_product_measurement_Audit_2(ID_product_measurement,ModifiedDate) on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Type_Storage_location_Audit_2         on Type_Storage_location_Audit_2(ID_Type_Storage_location,ModifiedDate)     on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_TypeItem_Audit_2                      on TypeItem_Audit_2(Id_TypeItem,ModifiedDate)                               on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_TypeOrders_Audit_2                    on TypeOrders_Audit_2(ID_TypeOrders,ModifiedDate)                           on SH_PartFuncDate_left(ModifiedDate)
 
---Employees_Audit  
---Employees_Audit_2
-CREATE FULLTEXT INDEX ON Employees_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Employees_Audit
-CREATE FULLTEXT INDEX ON Employees_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Employees_Audit_2
---Passport_Audit  
---Passport_Audit_2
-CREATE FULLTEXT INDEX ON Passport_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Passport_Audit
-CREATE FULLTEXT INDEX ON Passport_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Passport_Audit_2
---Connection_String_Audit
---Connection_String_Audit_2
-CREATE FULLTEXT INDEX ON Connection_String_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Connection_String_Audit
-CREATE FULLTEXT INDEX ON Connection_String_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Connection_String_Audit_2
---Branch_Audit
---Branch_Audit_2
-CREATE FULLTEXT INDEX ON Branch_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Branch_Audit
-CREATE FULLTEXT INDEX ON Branch_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Branch_Audit_2
---Buyer_Audit
---Buyer_Audit_2
-CREATE FULLTEXT INDEX ON Buyer_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Buyer_Audit
-CREATE FULLTEXT INDEX ON Buyer_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Buyer_Audit_2
---Connection_Buyer_Audit
---Connection_Buyer_Audit_2
-CREATE FULLTEXT INDEX ON Connection_Buyer_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Connection_Buyer_Audit
-CREATE FULLTEXT INDEX ON Connection_Buyer_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Connection_Buyer_Audit_2
---Currency_Rate_Audit
---Currency_Rate_Audit_2
-CREATE FULLTEXT INDEX ON Currency_Rate_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Currency_Rate_Audit
-CREATE FULLTEXT INDEX ON Currency_Rate_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Currency_Rate_Audit_2
---Data_Orders_Audit
---Data_Orders_Audit_2
-CREATE FULLTEXT INDEX ON Data_Orders_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Data_Orders_Audit
-CREATE FULLTEXT INDEX ON Data_Orders_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Data_Orders_Audit_2
---Exemplar_Audit
---Exemplar_Audit_2
-CREATE FULLTEXT INDEX ON Exemplar_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Exemplar_Audit
-CREATE FULLTEXT INDEX ON Exemplar_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Exemplar_Audit_2
---Item_Audit
---Item_Audit_2
-CREATE FULLTEXT INDEX ON Item_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Item_Audit
-CREATE FULLTEXT INDEX ON Item_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Item_Audit_2
---Orders_Audit
---Orders_Audit_2
-CREATE FULLTEXT INDEX ON Orders_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_Orders_Audit
-CREATE FULLTEXT INDEX ON Orders_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_Orders_Audit_2
---TRANSACTION_Audit
---TRANSACTION_Audit_2
-CREATE FULLTEXT INDEX ON TRANSACTION_Audit   (ChangeDescription) KEY INDEX index_UNIQUE_TRANSACTION_Audit
-CREATE FULLTEXT INDEX ON TRANSACTION_Audit_2 (ChangeDescription) KEY INDEX index_UNIQUE_TRANSACTION_Audit_2
+ 
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Species_Item_Audit                    on Species_Item_Audit(ID_Species_Item,ModifiedDate)                         on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Item_status_Audit                     on Item_status_Audit(Id_Item_Status,ModifiedDate)                           on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Buyer_Type_Audit                      on Buyer_Type_Audit(Id_Buyer_Type,ModifiedDate)                             on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Storage_location_status_Audit         on Storage_location_status_Audit(Id_Status,ModifiedDate)                    on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Order_Assignment_Audit                on Order_Assignment_Audit(ID_OrderAssignment,ModifiedDate)                  on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Order_category_Audit                  on Order_category_Audit(ID_OrderCategory,ModifiedDate)                      on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Employees_Audit                       on Employees_Audit(ID_Employee,ModifiedDate)                                on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Department_Audit                      on Department_Audit(ID_Department,ModifiedDate)                             on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Group_Audit                           on Group_Audit(ID_Group,ModifiedDate)                                       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_The_Subgroup_Audit                    on The_Subgroup_Audit(ID_The_Subgroup,ModifiedDate)                         on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Passport_Audit                        on Passport_Audit(ID_Passport,ModifiedDate)                                 on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Post_Audit                            on Post_Audit(ID_Post,ModifiedDate)                                         on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Status_Employee_Audit                 on Status_Employee_Audit(ID_Status_Employee,ModifiedDate)                   on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Connection_String_Audit               on Connection_String_Audit(ID_Connection_String,ModifiedDate)               on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Branch_Audit                          on Branch_Audit(ID_Branch,ModifiedDate)                                     on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Country_Audit                         on Country_Audit(Id_Country,ModifiedDate)                                   on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Buyer_Audit                           on Buyer_Audit(Id_buyer,ModifiedDate)                                       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Buyer_status_Audit                    on Buyer_status_Audit(Id_Status,ModifiedDate)                               on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Condition_of_the_item_Audit           on Condition_of_the_item_Audit(ID_Condition_of_the_item,ModifiedDate)       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Connection_Buyer_Audit                on Connection_Buyer_Audit(ID_Connection_Buyer,ModifiedDate)                 on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Currency_Audit                        on Currency_Audit(ID_Currency,ModifiedDate)                                 on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Currency_Rate_Audit                   on Currency_Rate_Audit(ID_Currency_Rate,ModifiedDate)                       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Data_Orders_Audit                     on Data_Orders_Audit(Id_Data_Orders,ModifiedDate)                           on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Exemplar_Audit                        on Exemplar_Audit(ID_Exemplar,ModifiedDate)                                 on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Item_Audit                            on Item_Audit(Id_Item,ModifiedDate)                                         on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Orders_Audit                          on Orders_Audit(ID_Orders,ModifiedDate)                                     on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Orders_status_Audit                   on Orders_status_Audit(Id_Status,ModifiedDate)                              on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Storage_location_Audit                on Storage_location_Audit(ID_Storage_location,ModifiedDate)                 on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_TRANSACTION_Audit                     on TRANSACTION_Audit(ID_Transaction,ModifiedDate)                           on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Transaction_status_Audit              on Transaction_status_Audit(ID_Transaction_status,ModifiedDate)             on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Type_of_product_measurement_Audit     on Type_of_product_measurement_Audit(ID_product_measurement,ModifiedDate)   on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_Type_Storage_location_Audit           on Type_Storage_location_Audit(ID_Type_Storage_location,ModifiedDate)       on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_TypeItem_Audit                        on TypeItem_Audit(Id_TypeItem,ModifiedDate)                                 on SH_PartFuncDate_left(ModifiedDate)
+create nonclustered COLUMNSTORE index index_COLUMNSTORE_TypeOrders_Audit                      on TypeOrders_Audit(ID_TypeOrders,ModifiedDate)                             on SH_PartFuncDate_left(ModifiedDate)
 
 go
 
