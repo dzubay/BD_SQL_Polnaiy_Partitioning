@@ -27,7 +27,7 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     rm -rf /var/lib/apt/lists/*
 
 # Копируем SQL-скрипт в контейнер
-COPY Public_file.sql /tmp/Public_file.sql
+COPY Public_file_Docker.sql /tmp/Public_file_Docker.sql
 
 # Создаем директорию для скрипта
 RUN mkdir -p /usr/src/app
@@ -36,7 +36,7 @@ RUN mkdir -p /usr/src/app
 RUN echo "#!/bin/bash" > /usr/src/app/entrypoint.sh && \
     echo "/opt/mssql/bin/sqlservr &" >> /usr/src/app/entrypoint.sh && \
     echo "sleep 120" >> /usr/src/app/entrypoint.sh && \
-    echo "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'TempPa55wd#' -i /tmp/Public_file.sql" >> /usr/src/app/entrypoint.sh && \
+    echo "/opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'TempPa55wd#' -i /tmp/Public_file_Docker.sql" >> /usr/src/app/entrypoint.sh && \
     echo "tail -f /dev/null" >> /usr/src/app/entrypoint.sh && \
     chmod +x /usr/src/app/entrypoint.sh
 

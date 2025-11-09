@@ -13,7 +13,7 @@ services:
       MSSQL_ENABLE_HADR: 0
       MSSQL_ENABLE_MIXED_AUTH: 1
     volumes:
-      - ./Public_file.sql:/tmp/Public_file.sql  # Копируем SQL-файл в контейнер
+      - ./Public_file.sql:/tmp/Public_file_Docker.sql  # Копируем SQL-файл в контейнер
     command: >
       bash -c "
       apt-get update && apt-get install -y curl &&
@@ -24,6 +24,6 @@ services:
       echo 'mssql-tools installed' &&
       /opt/mssql/bin/sqlservr &
       sleep 120 &&
-      /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'TempPa55wd#' -i /tmp/Public_file.sql &&
+      /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'TempPa55wd#' -i /tmp/Public_file_Docker.sql &&
       tail -f /dev/null
       "
